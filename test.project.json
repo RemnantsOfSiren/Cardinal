@@ -1,0 +1,33 @@
+{
+  "name": "Cardinal",
+  "tree": {
+    "$className": "DataModel",
+    "$ignoreUnknownInstances": true,
+
+    "ReplicatedStorage": {
+      "$ignoreUnknownInstances": true,
+      "Packages": {
+        "$path": "Packages",
+        "Cardinal": {
+          "$path": "lib"
+        }
+      }
+    },
+
+    "ServerScriptService": {
+      "$ignoreUnknownInstances": true,
+      "Server": {
+        "$path": "src/server"
+      }
+    },
+
+    "StarterPlayer": {
+      "$ignoreUnknownInstances": true,
+      "StarterPlayerScripts": {
+        "Client": {
+          "$path": "src/client"
+        }
+      }
+    }
+  }
+}
