@@ -119,6 +119,7 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 
 		if Operator then
 			LastIndex = LastIndex:sub(1, LastIndex:find(Operator) - 1)
+			Indicies[#Indicies] = LastIndex
 
 			if typeof(Value) == "table" and not (Operator:find("+") or Operator:find("-")) then
 				return warn("Invalid Operator for Table")
@@ -129,14 +130,48 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 			if Operator:find("+") then
 				if typeof(CurrentValue) == "table" then
 					Value = Util.JoinTables(CurrentValue, { Value })
+
+					local Keys = {}
+
+					for Key in Value do
+						if not CurrentValue[Key] then
+							table.insert(Keys, Key)
+						end
+					end
+
+					for _, Key in Keys do
+						local _Indicies = table.clone(Indicies)
+						_Indicies[#_Indicies + 1] = Key
+						Replicator.Changed:Fire(_Indicies, Value[Key], nil)
+						CurrentValue[Key] = Value[Key]
+					end
+
+					return
 				else
 					Value += CurrentValue
 				end
 			elseif Operator:find("-") then
-				if typeof(Value) == "table" then
+				if typeof(CurrentValue) == "table" then
 					Value = Util.RemoveValue(CurrentValue, Value)
+
+					local Keys = {}
+
+					for Key in CurrentValue do
+						if not Value[Key] then
+							table.insert(Keys, Key)
+						end
+					end
+
+					for _, Key in Keys do
+						local _Indicies = table.clone(Indicies)
+						_Indicies[#_Indicies + 1] = Key
+						Replicator.Changed:Fire(_Indicies, nil, CurrentValue[Key])
+						CurrentValue[Key] = Value[Key]
+					end
+
+					return
 				else
-					Value += CurrentValue
+					Value -= CurrentValue
 				end
 			elseif Operator:find("*") then
 				Value *= Pointer[LastIndex]

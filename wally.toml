@@ -1,9 +1,10 @@
 [package]
-name = "siren10/cardinal"
+name = "remnantsofsiren/cardinal"
 version = "0.0.1"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 exclude = ["src"]
+private = true
 
 [dependencies]
 bridgenet2 = "ffrostflame/bridgenet2@1.0.0"

@@ -64,6 +64,40 @@ local function CreateReplicator(Name)
 			end)
 		end
 
+		function Replica:ListenToNewKey(Indicies: { string | number } | string, Callback)
+			local _Indicies: { unknown } = (
+				if typeof(Indicies) == "string"
+					then string.split(
+						Indicies,
+						(string.find(Indicies, ".") and ".") or (string.find(Indicies, "/") and "/")
+					)
+					else Indicies
+			) :: { unknown }
+
+			return Replica.Changed:Connect(function(ChangedIndices, Value, OldValue)
+				if not OldValue and ChangedIndices[#ChangedIndices - 1] == _Indicies[#_Indicies] then
+					task.spawn(Callback, Value, ChangedIndices[#ChangedIndices])
+				end
+			end)
+		end
+
+		function Replica:ListenToKeyRemoved(Indicies: { string | number } | string, Callback)
+			local _Indicies: { unknown } = (
+				if typeof(Indicies) == "string"
+					then string.split(
+						Indicies,
+						(string.find(Indicies, ".") and ".") or (string.find(Indicies, "/") and "/")
+					)
+					else Indicies
+			) :: { unknown }
+
+			return Replica.Changed:Connect(function(ChangedIndices, Value, OldValue)
+				if not Value and ChangedIndices[#ChangedIndices - 1] == _Indicies[#_Indicies] then
+					task.spawn(Callback, OldValue, ChangedIndices[#ChangedIndices])
+				end
+			end)
+		end
+
 		function Replica:FireServer(...)
 			Bridge:Fire({ "Request", Id, ... })
 		end

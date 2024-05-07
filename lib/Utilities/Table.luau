@@ -31,6 +31,11 @@ function Util.JoinTables(...)
 end
 
 function Util.Equals(Table1: { any }, Table2: { any }, Deep: boolean?)
+	if typeof(Table1) ~= "table" or typeof(Table2) ~= "table" then
+		warn("One of the arguments is not a table")
+		return false
+	end
+
 	if #Table1 ~= #Table2 then
 		return false
 	end
@@ -48,15 +53,29 @@ function Util.Equals(Table1: { any }, Table2: { any }, Deep: boolean?)
 	return true
 end
 
-function Util.RemoveValue(Table: { any }, Value: { any })
-	local NewTable = {}
+function Util.RemoveValue(Table: { any }, Value: any)
+	local NewTable = table.clone(Table)
 
-	for Index, _Value in pairs(Table) do
-		if not Util.Equals(Value, _Value, true) then
-			if typeof(Index) == "number" then
-				table.insert(NewTable, _Value)
-			else
-				NewTable[Index] = _Value
+	if typeof(Value) == "table" then
+		for Index, Item in Table do
+			if typeof(Item) == "table" and Util.Equals(Item, Value) then
+				if typeof(Index) == "number" then
+					table.remove(NewTable, Index)
+				else
+					NewTable[Index] = nil
+				end
+				break
+			end
+		end
+	else
+		for Index, _Value in NewTable do
+			if _Value == Value then
+				if typeof(Index) == "number" then
+					table.remove(NewTable, Index)
+				else
+					NewTable[Index] = nil
+				end
+				break
 			end
 		end
 	end
