@@ -92,9 +92,8 @@
 
 local RunService = game:GetService("RunService")
 local PlayerService = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Promise = require(ReplicatedStorage.Packages._Index["evaera_promise@4.0.0"]["promise"])
+local Promise = require(script.Parent.Promise)
 local Replicator = require(script.Replicator)
 local Net = require(script.Net)
 
@@ -117,17 +116,25 @@ local Started = false
 local CachedNets = if not IsServer then {} else nil
 
 local function Load(Module: ModuleScript)
-	if Module:IsA("ModuleScript") then
-		local Name = Module.Name
-		Module = require(Module) -- ignore this linter error, it works fine it just doesn't like that it's an irregular path.
-		if typeof(Module) == "table" then
-			Loaded[Name] = Module
+	local Name = Module.Name
+	Module = require(Module) -- ignore this linter error, it works fine it just doesn't like that it's an irregular path.
+	if typeof(Module) == "table" then
+		Loaded[Name] = Module
+	end
+end
+
+local function IsAnException(Exceptions: {string}, Name: string): boolean
+	for _, Exception in pairs(Exceptions) do
+		if Name:lower():find(Exception:lower()) then
+			return true
 		end
 	end
+	return false
 end
 
 return {
     Replicator = if IsServer then Replicator.ReplicaServer else Replicator.ReplicaClient,
+	Net = Net,
 
 	OnStart = function()
 		if Started then
@@ -142,7 +149,7 @@ return {
 		end
 	end,
 
-	Load = function(Parent: Instance, Deep: boolean?)
+	Load = function(Parent: Instance, Deep: boolean?, Exceptions: { string }?)
 		if Started then
 			return Promise.reject("Can't load Modules once the Loader is already started.")
 		end
@@ -151,6 +158,10 @@ return {
 
 		for _, Module in pairs(Modules) do
 			if Module:IsA("ModuleScript") then
+				if Exceptions and IsAnException(Exceptions, Module.Name) then
+					continue
+				end
+				
 				Load(Module)
 			end
 		end
@@ -168,26 +179,28 @@ return {
 
             if Found then
                 return Found
-            else        
-                local Nets = script:GetAttribute("_NetworkEvents"):split(":")
+            else
+				local NetworkEvents = script:WaitForChild("NetworkEvents")
+				local Nets = NetworkEvents.Value:split(":")
+				
 				if table.find(Nets, Name) then
-                    local _Net = {}
-                    
-                    local Network = Net.new(Name)
-                    local GetEvents = Network:CreateEvent("GetEvents")
-                    local Events = GetEvents:Invoke()
+					local _Net = {}
+					
+					local Network = Net.new(Name)
+					local GetEvents = Network:CreateEvent("GetEvents")
+					local Events = GetEvents:Invoke()
 
-                    for _, Event in Events do
-                        local _Event = Network:CreateEvent(Event)
+					for _, Event in Events do
+						local _Event = Network:CreateEvent(Event)
 
-                        _Net[Event] = function(_, ...)
-                            return _Event:Invoke(...)
-                        end
-                    end
+						_Net[Event] = function(_, ...)
+							return _Event:Invoke(...)
+						end
+					end
 
 					CachedNets[Name] = _Net
 					return _Net
-                end 
+				end
             end 
         end
     end,
@@ -252,9 +265,12 @@ return {
 
 				for Name, Module in pairs(Loaded) do
                     if Module.Client then
+						Module.Client.Server = Module
+	
                         local _Net = Net.new(Module.Name or Name)
                         local ClientEvents = {}
                         local GetEvents = _Net:CreateEvent("GetEvents")
+
                         GetEvents:SetCallback(function()
                             return ClientEvents
                         end)
@@ -271,8 +287,6 @@ return {
 
                         table.insert(Nets, Name)
                     end
-
-                    script:SetAttribute("_NetworkEvents", table.concat(Nets,":"))
 
 					for Function, Callback in pairs(Module) do
 						if Function == "Name" or typeof(Callback) ~= "function" then
@@ -303,6 +317,11 @@ return {
 						end
 					end
 				end
+				
+				local Net = Instance.new("StringValue")
+				Net.Name = "NetworkEvents"
+				Net.Value = table.concat(Nets, ":")
+				Net.Parent = script
 
 				for Event, Callbacks in pairs(Events.RunService) do
 					RunService[Event]:Connect(function(...)

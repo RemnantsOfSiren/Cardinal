@@ -1,11 +1,10 @@
 local HttpService = game:GetService("HttpService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Util = require(script.Parent.Parent.Utilities.Table)
 
-local BridgeNet = require(ReplicatedStorage.Packages._Index["ffrostflame_bridgenet2@1.0.0"]["bridgenet2"])
-local LemonSignal = require(ReplicatedStorage.Packages._Index["data-oriented-house_lemonsignal@1.10.0"]["lemonsignal"])
-local Trove = require(ReplicatedStorage.Packages._Index["sleitnick_trove@1.2.0"]["trove"])
+local BridgeNet = require(script.Parent.Parent.Parent.BridgeNet)
+local LemonSignal = require(script.Parent.Parent.Parent.Signal)
+local Trove = require(script.Parent.Parent.Parent.Trove)
 
 export type ReplicaConfig = {
 	Name: string,
@@ -47,19 +46,19 @@ end
 function ReplicaServer.NewReplica(Config: ReplicaConfig)
 	local Id = HttpService:GenerateGUID(false)
 
-	local Replicator = {}
+	local Replica = {}
 
-	Replicator.Tags = Config.Tags or {}
-	Replicator.To = Config.To
-	Replicator.Name = Config.Name
-	Replicator.Cleaner = Trove.new()
-	Replicator.ServerEvents = {}
+	Replica.Tags = Config.Tags or {}
+	Replica.To = Config.To
+	Replica.Name = Config.Name
+	Replica.Cleaner = Trove.new()
+	Replica.ServerEvents = {}
 
-	function Replicator:ConnectOnServerEvent(Callback: (...any) -> ())
-		table.insert(Replicator.ServerEvents, Callback)
+	function Replica:ConnectOnServerEvent(Callback: (...any) -> ())
+		table.insert(Replica.ServerEvents, Callback)
 
 		return function()
-			table.remove(Replicator.ServerEvents, table.find(Replicator.ServerEvents, Callback))
+			table.remove(Replica.ServerEvents, table.find(Replicator.ServerEvents, Callback))
 		end
 	end
 
@@ -67,7 +66,7 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 		Bridges[Config.Name] = BridgeNet.ServerBridge(Config.Name)
 	end
 
-	local Args = { "Create", Config.Name, Id, Replicator.Tags, Config.Data }
+	local Args = { "Create", Config.Name, Id, Replica.Tags, Config.Data }
 
 	if Config.To == "All" then
 		MainBridge:Fire(BridgeNet.AllPlayers(), Args)
@@ -78,9 +77,9 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 	end
 
 	local Bridge = Bridges[Config.Name]
-	Replicator.Changed = LemonSignal.new()
+	Replica.Changed = LemonSignal.new()
 
-	Replicator.Changed:Connect(function(Indices, Value, OldValue)
+	Replica.Changed:Connect(function(Indices, Value, OldValue)
 		local Args = { Id, Indices, Value, OldValue }
 		if Config.To == "All" then
 			Bridge:Fire(BridgeNet.AllPlayers(), Args)
@@ -101,10 +100,10 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 		end
 	end)
 
-	Replicator.Data = Config.Data
+	Replica.Data = Config.Data
 
 	local function Update(Indicies, Value)
-		local Pointer = Replicator.Data
+		local Pointer = Replica.Data
 
 		for I = 1, #Indicies - 1 do
 			local Index = Indicies[I]
@@ -115,7 +114,7 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 		end
 
 		local LastIndex = Indicies[#Indicies]
-		local Operator = LastIndex:match("[+%%-*/^]$")
+		local Operator = if typeof(LastIndex) == "string" then LastIndex:match("[+%%-*/^]$") else nil
 
 		if Operator then
 			LastIndex = LastIndex:sub(1, LastIndex:find(Operator) - 1)
@@ -142,7 +141,7 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 					for _, Key in Keys do
 						local _Indicies = table.clone(Indicies)
 						_Indicies[#_Indicies + 1] = Key
-						Replicator.Changed:Fire(_Indicies, Value[Key], nil)
+						Replica.Changed:Fire(_Indicies, Value[Key], nil)
 						CurrentValue[Key] = Value[Key]
 					end
 
@@ -165,7 +164,7 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 					for _, Key in Keys do
 						local _Indicies = table.clone(Indicies)
 						_Indicies[#_Indicies + 1] = Key
-						Replicator.Changed:Fire(_Indicies, nil, CurrentValue[Key])
+						Replica.Changed:Fire(_Indicies, nil, CurrentValue[Key])
 						CurrentValue[Key] = Value[Key]
 					end
 
@@ -194,17 +193,17 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 		if OldValue ~= Value then
 			Pointer[LastIndex] = Value
 			Indicies[#Indicies] = LastIndex
-			Replicator.Changed:Fire(Indicies, Value, OldValue)
+			Replica.Changed:Fire(Indicies, Value, OldValue)
 		end
 
 		return
 	end
 
-	function Replicator:AddCleanupTask(Task: () -> nil)
-		Replicator.Cleaner:Add(Task, true)
+	function Replica:AddCleanupTask(Task: () -> nil)
+		Replica.Cleaner:Add(Task, true)
 	end
 
-	function Replicator:Set(Indicies: { unknown } | string, Value)
+	function Replica:Set(Indicies: { unknown } | string, Value)
 		local _Indicies: { unknown } = (
 			if typeof(Indicies) == "string"
 				then string.split(
@@ -215,9 +214,14 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 		) :: { unknown }
 
 		if #_Indicies == 0 and typeof(Value) == "table" then
-			local OldData = Util.CopyTable(Replicator.Data, true)
-			Replicator.Data = Util.CopyTable(Value)
-			Replicator.Changed:Fire({}, Replicator.Data, OldData)
+			local OldData = Util.CopyTable(Replica.Data, true)
+			for Index, _Value in Value do
+				if not OldData[Index] or OldData[Index] ~= _Value then
+					Replica.Data[Index] = _Value
+				end
+			end
+			Replica.Data = OldData
+			Replica.Changed:Fire({}, Replica.Data, OldData)
 		else
 			Update(_Indicies, if typeof(Value) == "table" then Util.CopyTable(Value, true) else Value)
 		end
@@ -225,7 +229,67 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 		return nil
 	end
 
-	function Replicator:Destroy()
+	function Replica:ListenToChange(Indicies: { string | number } | string, Callback)
+		local _Indicies: { unknown } = (
+			if typeof(Indicies) == "string"
+				then string.split(
+					Indicies,
+					(string.find(Indicies, ".") and ".") or (string.find(Indicies, "/") and "/")
+				)
+				else Indicies
+		) :: { unknown }
+
+		return Replica.Changed:Connect(function(ChangedIndicies, Value, OldValue)
+			local Match = true
+
+			for I, Index in pairs(_Indicies) do
+				if Index ~= ChangedIndicies[I] then
+					Match = false
+					break
+				end
+			end
+
+			if Match then
+				task.spawn(Callback, Value, OldValue)
+			end
+		end)
+	end
+
+	function Replica:ListenToNewKey(Indicies: { string | number } | string, Callback)
+		local _Indicies: { unknown } = (
+			if typeof(Indicies) == "string"
+				then string.split(
+					Indicies,
+					(string.find(Indicies, ".") and ".") or (string.find(Indicies, "/") and "/")
+				)
+				else Indicies
+		) :: { unknown }
+
+		return Replica.Changed:Connect(function(ChangedIndices, Value, OldValue)
+			if not OldValue and ChangedIndices[#ChangedIndices - 1] == _Indicies[#_Indicies] then
+				task.spawn(Callback, Value, ChangedIndices[#ChangedIndices])
+			end
+		end)
+	end
+
+	function Replica:ListenToKeyRemoved(Indicies: { string | number } | string, Callback)
+		local _Indicies: { unknown } = (
+			if typeof(Indicies) == "string"
+				then string.split(
+					Indicies,
+					(string.find(Indicies, ".") and ".") or (string.find(Indicies, "/") and "/")
+				)
+				else Indicies
+		) :: { unknown }
+
+		return Replica.Changed:Connect(function(ChangedIndices, Value, OldValue)
+			if not Value and ChangedIndices[#ChangedIndices - 1] == _Indicies[#_Indicies] then
+				task.spawn(Callback, OldValue, ChangedIndices[#ChangedIndices])
+			end
+		end)
+	end
+
+	function Replica:Destroy()
 		MainBridge:Fire({ "Destroy", Config.Name, Id })
 		self.Changed:Destroy()
 		self.Cleaner:Destroy()
@@ -234,9 +298,9 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 		table.clear(self)
 	end
 
-	Replicas[Id] = Replicator
+	Replicas[Id] = Replica
 
-	return Replicator
+	return Replica
 end
 
 return ReplicaServer

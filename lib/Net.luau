@@ -1,7 +1,6 @@
 local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local BridgeNet = require(ReplicatedStorage.Packages._Index["ffrostflame_bridgenet2@1.0.0"]["bridgenet2"])
+local BridgeNet = require(script.Parent.Parent.BridgeNet)
 
 local IsServer = RunService:IsServer()
 

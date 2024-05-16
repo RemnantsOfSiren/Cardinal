@@ -1,8 +1,6 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-local BridgeNet = require(ReplicatedStorage.Packages._Index["ffrostflame_bridgenet2@1.0.0"]["bridgenet2"])
-local LemonSignal = require(ReplicatedStorage.Packages._Index["data-oriented-house_lemonsignal@1.10.0"]["lemonsignal"])
-local Trove = require(ReplicatedStorage.Packages._Index["sleitnick_trove@1.2.0"]["trove"])
+local BridgeNet = require(script.Parent.Parent.Parent.BridgeNet)
+local LemonSignal = require(script.Parent.Parent.Parent.Signal)
+local Trove = require(script.Parent.Parent.Parent.Trove)
 
 local MainBridge = BridgeNet.ClientBridge("ReplicaServer")
 
