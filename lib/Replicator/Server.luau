@@ -23,19 +23,19 @@ local MainBridge = BridgeNet.ServerBridge("ReplicaServer")
 MainBridge.OnServerInvoke = function(Player)
 	local _Replicas = {}
 
-	for Id, Replicator in pairs(Replicas) do
+	for Id, Replica in pairs(Replicas) do
 		if
-			(typeof(Replicator.To) == "string" and Replicator.To:lower() == "all")
-			or (typeof(Replicator.To) == "userdata" and Replicator.To == Player)
-			or (typeof(Replicator.To) == "table" and table.find(Replicator.To, Player))
+			(typeof(Replica.To) == "string" and Replica.To:lower() == "all")
+			or (typeof(Replica.To) == "userdata" and Replica.To == Player)
+			or (typeof(Replica.To) == "table" and table.find(Replica.To, Player))
 		then
-			if not _Replicas[Replicator.Name] then
-				_Replicas[Replicator.Name] = {}
+			if not _Replicas[Replica.Name] then
+				_Replicas[Replica.Name] = {}
 			end
 
-			_Replicas[Replicator.Name][Id] = {
-				Tags = Util.CopyTable(Replicator.Tags, true),
-				Data = Util.CopyTable(Replicator.Data, true),
+			_Replicas[Replica.Name][Id] = {
+				Tags = Util.CopyTable(Replica.Tags, true),
+				Data = Util.CopyTable(Replica.Data, true),
 			}
 		end
 	end
@@ -58,7 +58,7 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 		table.insert(Replica.ServerEvents, Callback)
 
 		return function()
-			table.remove(Replica.ServerEvents, table.find(Replicator.ServerEvents, Callback))
+			table.remove(Replica.ServerEvents, table.find(Replica.ServerEvents, Callback))
 		end
 	end
 
@@ -94,7 +94,7 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 		local Event = Args[1]
 
 		if Event == "Request" and Args[2] == Id then
-			for _, Callback in Replicator.ServerEvents do
+			for _, Callback in Replica.ServerEvents do
 				task.spawn(Callback, Player, table.unpack(Args, 3))
 			end
 		end
@@ -220,7 +220,6 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 					Replica.Data[Index] = _Value
 				end
 			end
-			Replica.Data = OldData
 			Replica.Changed:Fire({}, Replica.Data, OldData)
 		else
 			Update(_Indicies, if typeof(Value) == "table" then Util.CopyTable(Value, true) else Value)

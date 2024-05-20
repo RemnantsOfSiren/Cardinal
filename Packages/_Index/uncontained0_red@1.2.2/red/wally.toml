@@ -1,0 +1,10 @@
+[package]
+name = "uncontained0/red"
+version = "1.2.2"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+license = "MIT"
+include = ["default.project.json", "lib", "lib/**", "LICENSE", "wally.toml"]
+exclude = ["**"]
+
+[dependencies]
