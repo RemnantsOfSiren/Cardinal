@@ -123,9 +123,9 @@ local function Load(Module: ModuleScript)
 	end
 end
 
-local function IsAnException(Exceptions: {string}, Name: string): boolean
-	for _, Exception in pairs(Exceptions) do
-		if Name:lower():find(Exception:lower()) then
+local function IsAnExclusion(Exclusions: {string}, Name: string): boolean
+	for _, Exclusion in pairs(Exclusions) do
+		if Name:lower():find(Exclusion:lower()) then
 			return true
 		end
 	end
@@ -136,6 +136,11 @@ return {
     Replicator = if IsServer then Replicator.ReplicaServer else Replicator.ReplicaClient,
 	Net = Net,
 
+	--[[
+		@function OnStart
+		@description Waits for the Loader to start.
+		@return Promise<void>
+	]]
 	OnStart = function()
 		if Started then
 			return Promise.resolve()
@@ -149,7 +154,13 @@ return {
 		end
 	end,
 
-	Load = function(Parent: Instance, Deep: boolean?, Exceptions: { string }?)
+	--[[
+		@function Load
+		@description Loads a ModuleScript into the Loader.
+		@param Parent: Instance, Deep: boolean?, Exclusions: { string }? | The parent Instance to load from, whether to load deep, and any exclusions.
+		@return void
+	]]
+	Load = function(Parent: Instance, Deep: boolean?, Exclusions: { string }?)
 		if Started then
 			return Promise.reject("Can't load Modules once the Loader is already started.")
 		end
@@ -158,7 +169,7 @@ return {
 
 		for _, Module in pairs(Modules) do
 			if Module:IsA("ModuleScript") then
-				if Exceptions and IsAnException(Exceptions, Module.Name) then
+				if Exclusions and IsAnExclusion(Exclusions, Module.Name) then
 					continue
 				end
 				
@@ -169,6 +180,11 @@ return {
 		return Promise.resolve("Completed")
 	end,
 
+	--[[
+		@function GetService
+		@description Gets a service from the Loader by name (client only, and case sensitive).
+		@return table | nil
+	]]
     GetService = function(Name: string)
         if IsServer then
             return warn("GetService can only be called on the Client.")
@@ -205,6 +221,11 @@ return {
         end
     end,
 
+	--[[
+		@function Start
+		@description Starts the Loader, initializing and starting all services/controllers.
+		@return Promise<void>
+	]]
 	Start = function()
 		if Started then
 			return Promise.reject("Loader is already started.")
