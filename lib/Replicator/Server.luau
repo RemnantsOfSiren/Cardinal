@@ -147,7 +147,7 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 
 					return
 				else
-					Value += CurrentValue
+					CurrentValue += Value
 				end
 			elseif Operator:find("-") then
 				if typeof(CurrentValue) == "table" then
@@ -170,17 +170,19 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 
 					return
 				else
-					Value -= CurrentValue
+					CurrentValue -= Value
 				end
 			elseif Operator:find("*") then
-				Value *= Pointer[LastIndex]
+				CurrentValue *= Value
 			elseif Operator:find("/") then
-				Value /= Pointer[LastIndex]
+				CurrentValue /= Value
 			elseif Operator:find("^") then
-				Value ^= Pointer[LastIndex]
+				CurrentValue ^= Value
 			elseif Operator:find("%") then
-				Value %= Pointer[LastIndex]
+				CurrentValue %= Value
 			end
+
+			Value = CurrentValue
 		end
 
 		if Pointer[LastIndex] then

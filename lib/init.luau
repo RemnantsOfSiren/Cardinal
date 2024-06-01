@@ -214,6 +214,8 @@ return {
 						end
 					end
 
+					_Net.Bridge = Network
+
 					CachedNets[Name] = _Net
 					return _Net
 				end
