@@ -4,7 +4,7 @@ local Cardinal = require(ReplicatedStorage.Packages.Cardinal)
 
 local CharacterService = {
     Client = {};
-}
+} :: Cardinal.Service
 
 function CharacterService:OnPlayerAdded(Player)
     local Replica = Cardinal.Replicator.NewReplica({

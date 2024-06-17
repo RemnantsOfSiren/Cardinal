@@ -16,6 +16,10 @@ local function CreateReplicator(Name)
 	local Bridge = BridgeNet.ClientBridge(Name)
 
 	function Replicator.AddNewReplica(Id, Tags, Data)
+		if Replicator.Replicas[Id] then
+			return
+		end
+		
 		local Replica = {}
 
 		Replica.Id = Id

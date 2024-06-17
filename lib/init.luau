@@ -132,9 +132,42 @@ local function IsAnExclusion(Exclusions: {string}, Name: string): boolean
 	return false
 end
 
+export type Service = {
+	OnInit: () -> ()?,
+	OnStart: () -> ()?,
+	OnPlayerAdded: (Player: Player) -> ()?,
+	OnPlayerRemoving: (Player: Player) -> ()?,
+	OnCharacterAdded: (Character: Model, Player: Player) -> ()?,
+	OnStepped: (StartTime: number, DeltaTime: number) -> ()?,
+	OnHeartbeat: (DeltaTime: number) -> ()?,
+	OnPreAnimation: (DeltaTime: number) -> ()?,
+	OnPreSimulation: (DeltaTime: number) -> ()?,
+	OnPostAnimation: (DeltaTime: number) -> ()?,
+	OnPostSimulation: (DeltaTime: number) -> ()?,
+	Client: unknown?,
+}
+
+export type Controller = {
+	OnInit: () -> ()?,
+	OnStart: () -> ()?,
+	OnPlayerAdded: (Player: Player) -> ()?,
+	OnPlayerRemoving: (Player: Player) -> ()?,
+	OnCharacterAdded: (Character: Model, Player: Player) -> ()?,
+	OnLocalPlayer: (Player: Player) -> ()?,
+	OnLocalCharacter: (Character: Model, Player: Player) -> ()?,
+	OnStepped: (StartTime: number, DeltaTime: number) -> ()?,
+	OnRenderStepped: (DeltaTime: number) -> ()?,
+	OnHeartbeat: (DeltaTime: number) -> ()?,
+	OnPreAnimation: (DeltaTime: number) -> ()?,
+	OnPreSimulation: (DeltaTime: number) -> ()?,
+	OnPostAnimation: (DeltaTime: number) -> ()?,
+	OnPostSimulation: (DeltaTime: number) -> ()?,
+}
+
 return {
     Replicator = if IsServer then Replicator.ReplicaServer else Replicator.ReplicaClient,
 	Net = Net,
+	Player = if not IsServer then PlayerService.LocalPlayer else nil,
 
 	--[[
 		@function OnStart
@@ -291,6 +324,8 @@ return {
 						Module.Client.Server = Module
 	
                         local _Net = Net.new(Module.Name or Name)
+						Module.Net = _Net
+
                         local ClientEvents = {}
                         local GetEvents = _Net:CreateEvent("GetEvents")
 

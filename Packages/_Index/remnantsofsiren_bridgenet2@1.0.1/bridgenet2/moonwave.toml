@@ -1,0 +1,32 @@
+title = "BridgeNet2"
+gitRepoUrl = "https://github.com/ffrostflame/bridgenet2/"
+
+changelog = true
+
+[docusaurus]
+projectName = "BridgeNet2"
+tagline = "Blazing fast & opinionated networking library designed to reduce bandwidth"
+favicon = "favicon.png"
+
+[navbar.logo]
+alt = "BridgeNet2"
+src = "logo.png"
+
+[footer]
+style = "dark"
+
+[home]
+enabled = true
+includeReadme = false
+
+[[home.features]]
+title = "Cuts the header from RemoteEvents"
+description = "BridgeNet2 cuts down successive remote event call size from 9 bytes to 2 bytes"
+
+[[home.features]]
+title = "High quality logging"
+description = "BridgeNet2 makes logging network traffic incredibly easy in an extremely readable manner"
+
+[[home.features]]
+title = "Oriented around performance"
+description = "If your game is having performance issues related to networking, switching to BridgeNet2 will help."
