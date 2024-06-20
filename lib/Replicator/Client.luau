@@ -141,22 +141,15 @@ local function CreateReplicator(Name)
 end
 
 MainBridge:Connect(function(Args)
-	local Event = table.remove(Args, 1)
-	if Event == "Create" then
-		local Name, Id, Tags, Data = unpack(Args)
+	if Args[1] == "Create" then
+		local _, Name, Id, Tags, Data = unpack(Args)
 		local Replicator = Replicators[Name] or CreateReplicator(Name)
 		task.spawn(Replicator.AddNewReplica, Id, Tags, Data)
-	elseif Event == "Changed" then
-		local _Name, Id, Indicies, Value, OldValue = unpack(Args)
-
-		if Event ~= "Changed" then
-			return
-		end
-
-		local Replicator = Replicators[_Name]
+	elseif Args[1] == "Changed" then
+		local _, Name, Id, Indicies, Value, OldValue = unpack(Args)
+		local Replicator = Replicators[Name]
 
 		if Replicator then
-
 			local Replica = Replicator.Replicas[Id]
 
 			if not Replica then
@@ -184,8 +177,8 @@ MainBridge:Connect(function(Args)
 
 			Replica:Update(Indicies, Value, OldValue)
 		end
-	elseif Event == "Destroy" then
-		local Name, Id = unpack(Args)
+	elseif Args[1] == "Destroy" then
+		local _, Name, Id = unpack(Args)
 		local Replicator = Replicators[Name]
 		if Replicator then
 			local Replica = Replicator.Replicas[Id]

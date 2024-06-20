@@ -164,8 +164,8 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 					for _, Key in Keys do
 						local _Indicies = table.clone(Indicies)
 						_Indicies[#_Indicies + 1] = Key
-						Replica.Changed:Fire(_Indicies, nil, CurrentValue[Key])
-						CurrentValue[Key] = Value[Key]
+						Replica.Changed:Fire(_Indicies, Value[Key], CurrentValue[Key])
+						CurrentValue[Key] = Value[Key] 
 					end
 
 					return
