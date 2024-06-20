@@ -56,8 +56,12 @@ local function MakeEvent(Net: ServerNet | ClientNet, EventName: string): ServerE
 			Bridge:Fire(BridgeNet.PlayersExcept(_Exempt), { EventName, ... })
 		end
 
-		function Event:Fire(Player: Player, ...)
-			Bridge:Fire(Player, { EventName, ... })
+		function Event:Fire(Player: Player | { Player }, ...)
+			if typeof(Player) == "table" then
+				Bridge:Fire(BridgeNet.Players(Player), { EventName, ... })
+			else
+				Bridge:Fire(Player, { EventName, ... })
+			end
 		end
 
 		function Event:Connect(Callback: (...any) -> ())

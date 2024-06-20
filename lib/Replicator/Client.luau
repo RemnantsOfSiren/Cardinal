@@ -6,14 +6,33 @@ local MainBridge = BridgeNet.ClientBridge("ReplicaServer")
 
 local Replicators = {}
 
+local function GetAllIndicies(Data)
+	local Indicies = {}
+
+	for Index, Value in pairs(Data) do
+		if typeof(Value) == "table" then
+			local SubIndicies = { Index }
+			for _, SubIndex in GetAllIndicies(Value) do
+				table.insert(Indicies, {
+					unpack(table.clone(SubIndicies)),
+					SubIndex,
+				})
+			end
+			continue
+		end
+
+		table.insert(Indicies, { Index })
+	end
+
+	return Indicies
+end
+
 local function CreateReplicator(Name)
 	local Replicator = {}
 	Replicator.Replicas = {}
 
 	Replicator.Added = LemonSignal.new()
 	Replicators[Name] = Replicator
-
-	local Bridge = BridgeNet.ClientBridge(Name)
 
 	function Replicator.AddNewReplica(Id, Tags, Data)
 		if Replicator.Replicas[Id] then
@@ -101,7 +120,7 @@ local function CreateReplicator(Name)
 		end
 
 		function Replica:FireServer(...)
-			Bridge:Fire({ "Request", Id, ... })
+			MainBridge:Fire({ "Request", Name, Id, ... })
 		end
 
 		function Replica:AddCleanupTask(Task: () -> nil)
@@ -118,58 +137,6 @@ local function CreateReplicator(Name)
 		Replicator.Added:Fire(Replica)
 	end
 
-	local function GetAllIndicies(Data)
-		local Indicies = {}
-
-		for Index, Value in pairs(Data) do
-			if typeof(Value) == "table" then
-				local SubIndicies = { Index }
-				for _, SubIndex in GetAllIndicies(Value) do
-					table.insert(Indicies, {
-						unpack(table.clone(SubIndicies)),
-						SubIndex,
-					})
-				end
-				continue
-			end
-
-			table.insert(Indicies, { Index })
-		end
-
-		return Indicies
-	end
-
-	Bridge:Connect(function(Args)
-		local Id, Indicies, Value, OldValue = unpack(Args)
-
-		local Replica = Replicator.Replicas[Id]
-
-		if not Replica then
-			return
-		end
-
-		if #Indicies == 0 then
-			Indicies = GetAllIndicies(Value)
-
-			for _, _Indicies in Indicies do
-				local Pointer = Value
-				local OldPointer = OldValue
-
-				for I = 1, #_Indicies - 1 do
-					local Index = _Indicies[I]
-					Pointer = Pointer[Index]
-					OldPointer = OldPointer[Index]
-				end
-
-				local Index = _Indicies[#_Indicies]
-				Replica:Update(_Indicies, Pointer[Index], OldPointer[Index])
-			end
-			return
-		end
-
-		Replica:Update(Indicies, Value, OldValue)
-	end)
-
 	return Replicator
 end
 
@@ -179,6 +146,44 @@ MainBridge:Connect(function(Args)
 		local Name, Id, Tags, Data = unpack(Args)
 		local Replicator = Replicators[Name] or CreateReplicator(Name)
 		task.spawn(Replicator.AddNewReplica, Id, Tags, Data)
+	elseif Event == "Changed" then
+		local _Name, Id, Indicies, Value, OldValue = unpack(Args)
+
+		if Event ~= "Changed" then
+			return
+		end
+
+		local Replicator = Replicators[_Name]
+
+		if Replicator then
+
+			local Replica = Replicator.Replicas[Id]
+
+			if not Replica then
+				return
+			end
+
+			if #Indicies == 0 then
+				Indicies = GetAllIndicies(Value)
+
+				for _, _Indicies in Indicies do
+					local Pointer = Value
+					local OldPointer = OldValue
+
+					for I = 1, #_Indicies - 1 do
+						local Index = _Indicies[I]
+						Pointer = Pointer[Index]
+						OldPointer = OldPointer[Index]
+					end
+
+					local Index = _Indicies[#_Indicies]
+					Replica:Update(_Indicies, Pointer[Index], OldPointer[Index])
+				end
+				return
+			end
+
+			Replica:Update(Indicies, Value, OldValue)
+		end
 	elseif Event == "Destroy" then
 		local Name, Id = unpack(Args)
 		local Replicator = Replicators[Name]

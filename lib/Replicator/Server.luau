@@ -62,10 +62,6 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 		end
 	end
 
-	if not Bridges[Config.Name] then
-		Bridges[Config.Name] = BridgeNet.ServerBridge(Config.Name)
-	end
-
 	local Args = { "Create", Config.Name, Id, Replica.Tags, Config.Data }
 
 	if Config.To == "All" then
@@ -76,29 +72,33 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 		MainBridge:Fire(Config.To, Args)
 	end
 
-	local Bridge = Bridges[Config.Name]
+	--local Bridge = Bridges[Config.Name]
 	Replica.Changed = LemonSignal.new()
 
 	Replica.Changed:Connect(function(Indices, Value, OldValue)
-		local Args = { Id, Indices, Value, OldValue }
+		local _Args = { "Changed", Config.Name, Id, Indices, Value, OldValue }
 		if Config.To == "All" then
-			Bridge:Fire(BridgeNet.AllPlayers(), Args)
+			MainBridge:Fire(BridgeNet.AllPlayers(), _Args)
 		elseif typeof(Config.To) == "table" then
-			Bridge:Fire(BridgeNet.Players(Config.To), Args)
+			MainBridge:Fire(BridgeNet.Players(Config.To), _Args)
 		else
-			Bridge:Fire(Config.To, Args)
+			MainBridge:Fire(Config.To, _Args)
 		end
 	end)
 
-	Bridge:Connect(function(Player, Args)
+	Replica.Cleaner:Add(MainBridge:Connect(function(Player, Args)
 		local Event = Args[1]
 
-		if Event == "Request" and Args[2] == Id then
+		if Event ~= "Request" then
+			return
+		end
+
+		if Args[2] == Config.Name and Args[3] == Id then
 			for _, Callback in Replica.ServerEvents do
-				task.spawn(Callback, Player, table.unpack(Args, 3))
+				task.spawn(Callback, Player, table.unpack(Args, 4))
 			end
 		end
-	end)
+	end), "Disconnect")
 
 	Replica.Data = Config.Data
 
