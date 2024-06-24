@@ -53,34 +53,4 @@ function Util.Equals(Table1: { any }, Table2: { any }, Deep: boolean?)
 	return true
 end
 
-function Util.RemoveValue(Table: { any }, Value: any)
-	local NewTable = table.clone(Table)
-
-	if typeof(Value) == "table" then
-		for Index, Item in Table do
-			if typeof(Item) == "table" and Util.Equals(Item, Value) then
-				if typeof(Index) == "number" then
-					table.remove(NewTable, Index)
-				else
-					NewTable[Index] = nil
-				end
-				break
-			end
-		end
-	else
-		for Index, _Value in NewTable do
-			if _Value == Value then
-				if typeof(Index) == "number" then
-					table.remove(NewTable, Index)
-				else
-					NewTable[Index] = nil
-				end
-				break
-			end
-		end
-	end
-
-	return NewTable
-end
-
 return Util

@@ -151,12 +151,10 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 				end
 			elseif Operator:find("-") then
 				if typeof(CurrentValue) == "table" then
-					Value = Util.RemoveValue(CurrentValue, Value)
-
 					local Keys = {}
 
 					for Key in CurrentValue do
-						if not Value[Key] then
+						if Util.Equals(CurrentValue[Key], Value) then
 							table.insert(Keys, Key)
 						end
 					end
@@ -164,8 +162,8 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 					for _, Key in Keys do
 						local _Indicies = table.clone(Indicies)
 						_Indicies[#_Indicies + 1] = Key
-						Replica.Changed:Fire(_Indicies, Value[Key], CurrentValue[Key])
-						CurrentValue[Key] = Value[Key] 
+						Replica.Changed:Fire(_Indicies, nil, CurrentValue[Key])
+						CurrentValue[Key] = nil
 					end
 
 					return
