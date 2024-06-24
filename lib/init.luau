@@ -164,10 +164,20 @@ export type Controller = {
 	OnPostSimulation: (DeltaTime: number) -> ()?,
 }
 
+local Signal = newproxy(false)
+local Property = newproxy(false)
+
 return {
     Replicator = if IsServer then Replicator.ReplicaServer else Replicator.ReplicaClient,
 	Net = Net,
 	Player = if not IsServer then PlayerService.LocalPlayer else nil,
+	CreateSignal = function()
+		return Signal
+	end,
+
+	CreateProperty = function(InitialValue: any)
+		return {Property, InitialValue } 
+	end,
 
 	--[[
 		@function OnStart
@@ -235,16 +245,26 @@ return {
 				if table.find(Nets, Name) then
 					local _Net = {}
 					
-					local Network = Net.new(Name)
-					local GetEvents = Network:CreateEvent("GetEvents")
-					local Events = GetEvents:Invoke()
+					local Network = Net.new(Name) :: { CreateEvent: (any, string) -> { [any]: any } }
 
-					for _, Event in Events do
+					local GetEvents = Network:CreateEvent("GetEvents")
+					local GetProperties = Network:CreateEvent("GetProperties")
+					local GetSignals = Network:CreateEvent("GetSignals")
+						
+					for _, Event in GetEvents:Invoke() do
 						local _Event = Network:CreateEvent(Event)
 
 						_Net[Event] = function(_, ...)
 							return _Event:Invoke(...)
 						end
+					end
+
+					for _, Info in GetProperties:Invoke() do
+						_Net[Info[1]] = Net.CreateProperty(Network, Info[1], Info[2])
+					end
+
+					for _, _Signal in GetSignals:Invoke() do
+						_Net[_Signal] = Net.CreateSignal(Network, _Signal)
 					end
 
 					_Net.Bridge = Network
@@ -323,24 +343,48 @@ return {
                     if Module.Client then
 						Module.Client.Server = Module
 	
-                        local _Net = Net.new(Module.Name or Name)
+                        local _Net = Net.new(Module.Name or Name) :: { CreateEvent: (any, string) -> { [any]: any } }
 						Module.Net = _Net
 
                         local ClientEvents = {}
+						local ClientSignals = {}
+						local ClientProperties = {}
+						
                         local GetEvents = _Net:CreateEvent("GetEvents")
 
                         GetEvents:SetCallback(function()
                             return ClientEvents
                         end)
+
+						local GetProperties = _Net:CreateEvent("GetProperties")
+
+						GetProperties:SetCallback(function()
+							return ClientProperties
+						end)
+
+						local GetSignals = _Net:CreateEvent("GetSignals")
+
+						GetSignals:SetCallback(function()
+							return ClientSignals
+						end)
         
                         for Event, Callback in Module.Client do
                             if typeof(Callback) == "function" then
                                 local _Event = _Net:CreateEvent(Event)
+
                                 _Event:SetCallback(function(Player, ...) 
 									return Callback(Module.Client, Player, ...)
 								end)
+
                                 table.insert(ClientEvents, Event)
-                            end
+                            elseif typeof(Callback) == "userdata" and Callback == Signal then
+								Module.Client[Event] = Net.CreateSignal(_Net, Event)
+								table.insert(ClientSignals, Event)
+							elseif typeof(Callback) == "table" and typeof(Callback[1]) == "userdata" and Callback[1] == Property then
+								local InitialValue = Callback[2]
+								Module.Client[Event] = Net.CreateProperty(_Net, Event, InitialValue)
+								table.insert(ClientProperties, { Event, InitialValue })
+							end
                         end
 
                         table.insert(Nets, Name)

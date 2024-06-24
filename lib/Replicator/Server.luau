@@ -2,9 +2,9 @@ local HttpService = game:GetService("HttpService")
 
 local Util = require(script.Parent.Parent.Utilities.Table)
 
-local BridgeNet = require(script.Parent.Parent.Parent.BridgeNet)
-local LemonSignal = require(script.Parent.Parent.Parent.Signal)
-local Trove = require(script.Parent.Parent.Parent.Trove)
+local BridgeNet = require(script.Parent.Parent.Parent.BridgeNet) :: { any }
+local LemonSignal = require(script.Parent.Parent.Parent.Signal) :: { any }
+local Trove = require(script.Parent.Parent.Parent.Trove) :: { any }
 
 export type ReplicaConfig = {
 	Name: string,
@@ -13,7 +13,6 @@ export type ReplicaConfig = {
 	To: { Player } | Player | "All",
 }
 
-local Bridges = {}
 local Replicas = {}
 
 local ReplicaServer = {}

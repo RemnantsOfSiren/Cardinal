@@ -7,8 +7,13 @@ local CharacterService = Cardinal.GetService("CharacterService")
 local CharacterController = {}
 
 function CharacterController:OnInit()
+    -- CharacterService.ItemEquipped:Connect(function(Item)
+    --     print(Item)
+    -- end)
+
+    CharacterService.CurrentlyEquippped:Observe(print)
+
     Cardinal.Replicator.ListenToNewReplica("Items", function(Replica) 
-        print(Replica.Data)
         Replica.Changed:Connect(print)
     end)
 end

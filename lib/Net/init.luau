@@ -1,6 +1,6 @@
 local RunService = game:GetService("RunService")
 
-local BridgeNet = require(script.Parent.Parent.BridgeNet)
+local BridgeNet = require(script.Parent.Parent.BridgeNet) :: { any }
 
 local IsServer = RunService:IsServer()
 
@@ -25,6 +25,9 @@ type ServerNet = {
 	AddInvoke: (self: ServerNet, EventName: string, Callback: () -> ...any?) -> (),
 	Bridge: ServerBridge,
 }
+
+local RemoteSignal = require(script.RemoteSignal)
+local RemoteProperty = require(script.RemoteProperty)
 
 type ClientNet = {
 	CreateEvent: (self: ClientNet, Name: string) -> ClientEvent,
@@ -136,6 +139,9 @@ local function MakeEvent(Net: ServerNet | ClientNet, EventName: string): ServerE
 end
 
 return {
+	CreateSignal = RemoteSignal.new,
+	CreateProperty = RemoteProperty.new,
+
 	new = function(Name: string): ServerNet | ClientNet
 		if CachedNets[Name] then
 			return CachedNets[Name]

@@ -1,6 +1,6 @@
-local BridgeNet = require(script.Parent.Parent.Parent.BridgeNet)
-local LemonSignal = require(script.Parent.Parent.Parent.Signal)
-local Trove = require(script.Parent.Parent.Parent.Trove)
+local BridgeNet = require(script.Parent.Parent.Parent.BridgeNet) :: { any }
+local LemonSignal = require(script.Parent.Parent.Parent.Signal) :: { any }
+local Trove = require(script.Parent.Parent.Parent.Trove) :: { any }
 
 local MainBridge = BridgeNet.ClientBridge("ReplicaServer")
 

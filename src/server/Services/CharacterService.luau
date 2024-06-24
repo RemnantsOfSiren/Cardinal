@@ -1,10 +1,12 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Cardinal = require(ReplicatedStorage.Packages.Cardinal)
+local Cardinal = require(ReplicatedStorage.Packages.Cardinal) :: { any }
 
 local CharacterService = {
-    Client = {};
-} :: Cardinal.Service
+    Client = {
+        CurrentlyEquippped = Cardinal.CreateProperty("Nothing"),
+    };
+}
 
 function CharacterService:OnPlayerAdded(Player)
     local Replica = Cardinal.Replicator.NewReplica({
@@ -31,7 +33,8 @@ function CharacterService:OnPlayerAdded(Player)
 end
 
 function CharacterService.Client:EquipItem(player, item)
-    print(player, item)
+    --self.ItemEquipped:Fire(player, item)
+    self.CurrentlyEquippped:SetFor(player, item)
 end
 
 return CharacterService
