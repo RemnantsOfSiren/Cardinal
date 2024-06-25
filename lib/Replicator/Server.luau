@@ -189,6 +189,10 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 
 		local OldValue = Pointer[LastIndex]
 
+		if typeof(OldValue) == "table" and typeof(Value) == "table" and Util.Equals(OldValue, Value, true) then
+			return
+		end
+
 		if OldValue ~= Value then
 			Pointer[LastIndex] = Value
 			Indicies[#Indicies] = LastIndex
@@ -213,6 +217,10 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 		) :: { unknown }
 
 		if #_Indicies == 0 and typeof(Value) == "table" then
+			if Util.Equals(Replica.Data, Value, true) then
+				return
+			end
+
 			local OldData = Util.CopyTable(Replica.Data, true)
 			for Index, _Value in Value do
 				if not OldData[Index] or OldData[Index] ~= _Value then
