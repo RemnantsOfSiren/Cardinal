@@ -55,7 +55,22 @@ local function CreateReplicator(Name)
 				Data = Data[Indicies[I]]
 			end
 
-			Data[Indicies[#Indicies]] = Value
+			if not Data then
+				return
+			end
+
+			local LastIndex = Indicies[#Indicies]
+
+			if typeof(LastIndex) == "number" then
+				if not Data[LastIndex] then
+					table.insert(Data, LastIndex, Value)
+				elseif Value == nil then
+					table.remove(Data, LastIndex)
+				end
+			else
+				Data[Indicies[#Indicies]] = Value
+			end
+
 			Replica.Changed:Fire(Indicies, Value, OldValue)
 		end
 

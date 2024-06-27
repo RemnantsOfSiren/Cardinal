@@ -161,10 +161,14 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 					for _, Key in Keys do
 						local _Indicies = table.clone(Indicies)
 						_Indicies[#_Indicies + 1] = Key
+						if typeof(Key) == "number" then
+							table.remove(CurrentValue, Key)
+						else
+							CurrentValue[Key] = nil
+						end
 						Replica.Changed:Fire(_Indicies, nil, CurrentValue[Key])
-						CurrentValue[Key] = nil
 					end
-
+	
 					return
 				else
 					CurrentValue -= Value
