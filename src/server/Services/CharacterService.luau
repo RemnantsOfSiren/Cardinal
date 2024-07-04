@@ -22,12 +22,13 @@ function CharacterService:OnPlayerAdded(Player)
             },
         },
         To = Player,
+        WriteLib = ReplicatedStorage.Shared.WriteLib
     })
 
     task.delay(5, function() 
-        Replica:Set("Sword", {
+        Replica:Write("Give", "Sword", {
             Name = "Sword",
-            Damage = 15,
+            Damage = 15
         })
     end)
 end
