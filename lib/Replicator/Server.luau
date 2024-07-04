@@ -1,4 +1,5 @@
 local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Util = require(script.Parent.Parent.Utilities.Table)
 
@@ -16,6 +17,37 @@ export type ReplicaConfig = {
 local Replicas = {}
 
 local ReplicaServer = {}
+
+local WriteLibCache = {}
+
+local function LoadWriteLib(WriteLibModule: ModuleScript)
+	local FoundWriteLib = WriteLibCache[WriteLibModule]
+
+	if FoundWriteLib then -- Already cached a WriteLib module
+		return FoundWriteLib
+	end
+
+	if WriteLibModule.ClassName ~= "ModuleScript" then
+		warn("WriteLib must be a ModuleScript!")
+		return
+	end
+
+	if not WriteLibModule:IsDescendantOf(ReplicatedStorage) then
+		warn("WriteLib must be a descendant of ReplicatedStorage!")
+		return
+	end
+
+	local LoadedWriteLib = require(WriteLibModule)
+
+	if not typeof(LoadedWriteLib) == "table" then
+		warn("WriteLib must return a table!")
+		return
+	end
+
+	WriteLibCache[WriteLibModule] = LoadedWriteLib
+
+	return LoadedWriteLib
+end
 
 local MainBridge = BridgeNet.ServerBridge("ReplicaServer")
 
@@ -35,6 +67,7 @@ MainBridge.OnServerInvoke = function(Player)
 			_Replicas[Replica.Name][Id] = {
 				Tags = Util.CopyTable(Replica.Tags, true),
 				Data = Util.CopyTable(Replica.Data, true),
+				WriteLib = Replica.WriteLibModule 
 			}
 		end
 	end
@@ -46,12 +79,26 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 	local Id = HttpService:GenerateGUID(false)
 
 	local Replica = {}
+	
+	local WriteFunctionFlag: boolean = false
 
+	Replica.WriteLibModule = Config.WriteLib
+	Replica.WriteLib = Replica.WriteLibModule and LoadWriteLib(Replica.WriteLibModule)
 	Replica.Tags = Config.Tags or {}
 	Replica.To = Config.To
 	Replica.Name = Config.Name
 	Replica.Cleaner = Trove.new()
 	Replica.ServerEvents = {}
+
+	local function FireBridge(Args)
+		if Config.To == "All" then
+			MainBridge:Fire(BridgeNet.AllPlayers(), Args)
+		elseif typeof(Config.To) == "table" then
+			MainBridge:Fire(BridgeNet.Players(Config.To), Args)
+		else
+			MainBridge:Fire(Config.To, Args)
+		end
+	end
 
 	function Replica:ConnectOnServerEvent(Callback: (...any) -> ())
 		table.insert(Replica.ServerEvents, Callback)
@@ -61,28 +108,16 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 		end
 	end
 
-	local Args = { "Create", Config.Name, Id, Replica.Tags, Config.Data }
+	local Args = { "Create", Config.Name, Id, Replica.Tags, Config.Data, Replica.WriteLibModule }
 
-	if Config.To == "All" then
-		MainBridge:Fire(BridgeNet.AllPlayers(), Args)
-	elseif typeof(Config.To) == "table" then
-		MainBridge:Fire(BridgeNet.Players(Config.To), Args)
-	else
-		MainBridge:Fire(Config.To, Args)
-	end
+	FireBridge(Args)
 
 	--local Bridge = Bridges[Config.Name]
 	Replica.Changed = LemonSignal.new()
 
 	Replica.Changed:Connect(function(Indices, Value, OldValue)
 		local _Args = { "Changed", Config.Name, Id, Indices, Value, OldValue }
-		if Config.To == "All" then
-			MainBridge:Fire(BridgeNet.AllPlayers(), _Args)
-		elseif typeof(Config.To) == "table" then
-			MainBridge:Fire(BridgeNet.Players(Config.To), _Args)
-		else
-			MainBridge:Fire(Config.To, _Args)
-		end
+		FireBridge(_Args)
 	end)
 
 	Replica.Cleaner:Add(MainBridge:Connect(function(Player, Args)
@@ -208,6 +243,33 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 
 	function Replica:AddCleanupTask(Task: () -> nil)
 		Replica.Cleaner:Add(Task, true)
+	end
+
+	function Replica:Write(WriteFunction: string, ...)
+		if Replica.WriteLib then
+			if not Replica.WriteLib[WriteFunction] then
+				warn(`Write Function {WriteFunction} was not in WriteLib!`)
+				return
+			end
+
+			local Func = Replica.WriteLib[WriteFunction]
+
+			if WriteFunctionFlag then
+				return Func(Replica, ...)
+			end
+
+			WriteFunctionFlag = true
+
+			local ReturnedValues = Func(Replica, ...)
+
+			WriteFunctionFlag = false
+
+			local Args = { "Write", Replica.Name, Id, WriteFunction, ...}
+
+			FireBridge(Args)
+
+			return ReturnedValues
+		end
 	end
 
 	function Replica:Set(Indicies: { unknown } | string, Value)
