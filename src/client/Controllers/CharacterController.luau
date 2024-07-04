@@ -15,7 +15,11 @@ function CharacterController:OnInit()
 
     Cardinal.Replicator.ListenToNewReplica("Items", function(Replica) 
         Replica.Changed:Connect(print)
+        Replica:ListenToWrite("Give", function(...)
+            print(...)
+        end)
     end)
+
 end
 
 function CharacterController:OnStart()

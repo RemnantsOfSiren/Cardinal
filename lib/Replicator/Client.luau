@@ -34,19 +34,49 @@ local function CreateReplicator(Name)
 	Replicator.Added = LemonSignal.new()
 	Replicators[Name] = Replicator
 
-	function Replicator.AddNewReplica(Id, Tags, Data)
+	function Replicator.AddNewReplica(Id, Tags, Data, WriteLib)
 		if Replicator.Replicas[Id] then
 			return
 		end
 		
 		local Replica = {}
-
+		
+		Replica.WriteFunctionFlag = false
+		Replica.WriteLib = WriteLib and require(WriteLib)
 		Replica.Id = Id
 		Replica.Tags = Tags
 		Replica.Data = Data
 		Replica.Changed = LemonSignal.new()
 		Replica.Cleaner = Trove.new()
 		Replica._Callbacks = {}
+		Replica._WriteCallbacks = {}
+
+		function Replica:Write(FunctionName: string, ...)
+			if not Replica.WriteLib then
+				warn(`No WriteLib exists for {Name} replica!`)
+				return
+			end
+
+			if not Replica.WriteLib[FunctionName] then
+				return
+			end
+
+			if self.WriteFunctionFlag == false then
+				return
+			end
+
+			local ReturnedValues = Replica.WriteLib[FunctionName](Replica, ...)
+
+			local Callbacks = Replicator._WriteCallbacks
+
+			if Callbacks[FunctionName] then
+				for _,Callback in ipairs(Callbacks) do
+					Callback(...)
+				end
+			end
+
+			return ReturnedValues
+		end
 
 		function Replica:Update(Indicies, Value, OldValue)
 			local Data = Replica.Data
@@ -72,6 +102,19 @@ local function CreateReplicator(Name)
 			end
 
 			Replica.Changed:Fire(Indicies, Value, OldValue)
+		end
+
+		function Replica:Set() -- Add this so that the client doesn't error out whenever the server runs :Set
+			return
+		end
+
+		function Replica:ListenToWrite(WriteFunction: string, Callback)
+			local Callbacks = Replica._WriteCallbacks[WriteFunction]
+			if not Callbacks then
+				Callbacks = {}
+				Replica._WriteCallbacks[WriteFunction] = Callbacks
+			end
+			table.insert(Callbacks, Callback)
 		end
 
 		function Replica:ListenToChange(Indicies: { string | number } | string, Callback)
@@ -157,9 +200,9 @@ end
 
 MainBridge:Connect(function(Args)
 	if Args[1] == "Create" then
-		local _, Name, Id, Tags, Data = unpack(Args)
+		local _, Name, Id, Tags, Data, WriteLib = unpack(Args)
 		local Replicator = Replicators[Name] or CreateReplicator(Name)
-		task.spawn(Replicator.AddNewReplica, Id, Tags, Data)
+		task.spawn(Replicator.AddNewReplica, Id, Tags, Data, WriteLib)
 	elseif Args[1] == "Changed" then
 		local _, Name, Id, Indicies, Value, OldValue = unpack(Args)
 		local Replicator = Replicators[Name]
@@ -191,6 +234,34 @@ MainBridge:Connect(function(Args)
 			end
 
 			Replica:Update(Indicies, Value, OldValue)
+		end
+	elseif Args[1] == "Write" then
+		local Name = Args[2]
+		local Id = Args[3]
+		local FunctionName = Args[4]
+
+		local NewArgs = {}
+		for i = 5, #Args do
+			table.insert(NewArgs, Args[i])
+		end
+
+		local Replicator = Replicators[Name]
+
+		if Replicator then
+			local Replica = Replicator.Replicas[Id]
+
+			Replica.WriteFunctionFlag = true
+
+			Replica.WriteLib[FunctionName](Replica, table.unpack(NewArgs))
+
+			Replica.WriteFunctionFlag = false
+
+			local Callbacks = Replica._WriteCallbacks[FunctionName]
+			if Callbacks then
+				for _, Callback in ipairs(Callbacks) do
+					Callback(table.unpack(NewArgs))
+				end
+			end
 		end
 	elseif Args[1] == "Destroy" then
 		local _, Name, Id = unpack(Args)
