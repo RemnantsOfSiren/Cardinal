@@ -20,19 +20,19 @@ export type ClientEvent = {
 	Connect: (self: ClientEvent, Callback: () -> ()) -> (),
 }
 
-type ServerNet = {
+export type ServerNet = {
 	CreateEvent: (self: ServerNet, Name: string) -> ServerEvent,
 	AddInvoke: (self: ServerNet, EventName: string, Callback: () -> ...any?) -> (),
 	Bridge: ServerBridge,
 }
 
-local RemoteSignal = require(script.RemoteSignal)
-local RemoteProperty = require(script.RemoteProperty)
-
-type ClientNet = {
+export type ClientNet = {
 	CreateEvent: (self: ClientNet, Name: string) -> ClientEvent,
 	Bridge: ClientBridge,
 }
+
+local RemoteSignal = require(script.RemoteSignal)
+local RemoteProperty = require(script.RemoteProperty)
 
 local CachedNets = {}
 

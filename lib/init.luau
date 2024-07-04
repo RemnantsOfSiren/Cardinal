@@ -94,9 +94,14 @@
 local RunService = game:GetService("RunService")
 local PlayerService = game:GetService("Players")
 
-local Promise = require(script.Parent.Promise)
+local Promise = require(script.Parent.Promise) :: { [any]: any }
 local Replicator = require(script.Replicator)
 local Net = require(script.Net)
+
+export type ClientNet = Net.ClientNet
+export type ServerNet = Net.ServerNet
+export type ServerEvent = Net.ServerEvent
+export type ClientEvent = Net.ClientEvent
 
 local IsServer = RunService:IsServer()
 
@@ -118,7 +123,7 @@ local CachedNets = if not IsServer then {} else nil
 
 local function Load(Module: ModuleScript)
 	local Name = Module.Name
-	Module = require(Module) -- ignore this linter error, it works fine it just doesn't like that it's an irregular path.
+	Module = require(Module) :: any
 	if typeof(Module) == "table" then
 		Loaded[Name] = Module
 	end
@@ -172,6 +177,7 @@ return {
     Replicator = if IsServer then Replicator.ReplicaServer else Replicator.ReplicaClient,
 	Net = Net,
 	Player = if not IsServer then PlayerService.LocalPlayer else nil,
+	
 	CreateSignal = function()
 		return Signal
 	end,

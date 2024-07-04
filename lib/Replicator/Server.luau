@@ -12,6 +12,7 @@ export type ReplicaConfig = {
 	Tags: { any }?,
 	Data: { any },
 	To: { Player } | Player | "All",
+	WriteLib: ModuleScript?,
 }
 
 local Replicas = {}
@@ -39,7 +40,7 @@ local function LoadWriteLib(WriteLibModule: ModuleScript)
 
 	local LoadedWriteLib = require(WriteLibModule)
 
-	if not typeof(LoadedWriteLib) == "table" then
+	if typeof(LoadedWriteLib) ~= "table" then
 		warn("WriteLib must return a table!")
 		return
 	end
