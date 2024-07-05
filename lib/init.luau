@@ -207,27 +207,15 @@ return {
 	--[[
 		@function Load
 		@description Loads a ModuleScript into the Loader.
-		@param Parent: Instance, DeeporPredicate: (ModuleScript) -> boolean |boolean?, Exclusions: { string }? | The parent Instance to load from, whether to load deep, and any exclusions.
+		@param Parent: Instance, Deep: boolean?, Exclusions: { string }? | The parent Instance to load from, whether to load deep, and any exclusions.
 		@return void
 	]]
-	Load = function(Parent: Instance, DeepOrPredicate: ((ModuleScript) -> (boolean) | boolean)?, Exclusions: { string }?)
+	Load = function(Parent: Instance, Deep: boolean?, Exclusions: { string }?)
 		if Started then
 			return Promise.reject("Can't load Modules once the Loader is already started.")
 		end
 
-		DeepOrPredicate = DeepOrPredicate or false
-
-		local Modules = {}
-		local DeepOrPredicateType: string = typeof(DeepOrPredicate)
-		if DeepOrPredicateType == "function" then
-			for _,ModuleScript: ModuleScript in ipairs(Parent:GetDescendants()) do
-				if ModuleScript:IsA("ModuleScript") and DeepOrPredicate(ModuleScript) then
-					table.insert(Modules, ModuleScript)
-				end
-			end
-		elseif DeepOrPredicateType == "boolean" then
-			Modules = if DeepOrPredicate then Parent:GetDescendants() else Parent:GetChildren()
-		end
+		local Modules = if Deep then Parent:GetDescendants() else Parent:GetChildren()
 
 		for _, Module in pairs(Modules) do
 			if Module:IsA("ModuleScript") then
