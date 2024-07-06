@@ -2,6 +2,8 @@ local BridgeNet = require(script.Parent.Parent.Parent.BridgeNet) :: { any }
 local LemonSignal = require(script.Parent.Parent.Parent.Signal) :: { any }
 local Trove = require(script.Parent.Parent.Parent.Trove) :: { any }
 
+local Util = require(script.Parent.Parent.Utilities.Table) :: { any }
+
 local MainBridge = BridgeNet.ClientBridge("ReplicaServer")
 
 local Replicators = {}
@@ -50,6 +52,7 @@ local function CreateReplicator(Name)
 		Replica.Cleaner = Trove.new()
 		Replica._Callbacks = {}
 		Replica._WriteCallbacks = {}
+		Replica._OldData = Util.CopyTable(Data, true)
 
 		function Replica:Write(FunctionName: string, ...)
 			if not Replica.WriteLib then
@@ -79,6 +82,7 @@ local function CreateReplicator(Name)
 		end
 
 		function Replica:Update(Indicies, Value, OldValue)
+			Replica._OldData = Util.CopyTable(Replica.Data, true)
 			local Data = Replica.Data
 
 			for I = 1, #Indicies - 1 do
@@ -127,10 +131,15 @@ local function CreateReplicator(Name)
 					else Indicies
 			) :: { unknown }
 
-			return Replica.Changed:Connect(function(ChangedIndicies, Value, OldValue)
+			return Replica.Changed:Connect(function(ChangedIndicies)
 				local Match = true
+				local _Data = Replica.Data
+				local _OldData = Replica._OldData
 
 				for I, Index in pairs(_Indicies) do
+					_Data = _Data[Index]
+					_OldData = _OldData[Index]
+
 					if Index ~= ChangedIndicies[I] then
 						Match = false
 						break
@@ -138,7 +147,7 @@ local function CreateReplicator(Name)
 				end
 
 				if Match then
-					task.spawn(Callback, Value, OldValue)
+					task.spawn(Callback, _Data, _OldData)
 				end
 			end)
 		end

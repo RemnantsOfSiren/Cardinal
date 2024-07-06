@@ -20,21 +20,26 @@ function CharacterService:OnPlayerAdded(Player)
                 Name = "Shield",
                 Defense = 5,
             },
+            Items = {
+                ["Health-Potion"] = {
+                    Count = 1
+                }
+            }
         },
         To = Player,
         WriteLib = ReplicatedStorage.Shared.WriteLib
     })
 
     task.delay(5, function() 
-        Replica:Write("Give", "Sword", {
-            Name = "Sword",
-            Damage = 15
-        })
+        -- Replica:Write("Give", "Sword", {
+        --     Name = "Sword",
+        --     Damage = 15
+        -- })
+        Replica:Set("Items.Health-Potion.Count", 2)
     end)
 end
 
 function CharacterService.Client:EquipItem(player, item)
-    --self.ItemEquipped:Fire(player, item)
     self.CurrentlyEquippped:SetFor(player, item)
 end
 

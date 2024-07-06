@@ -14,7 +14,7 @@ function CharacterController:OnInit()
     CharacterService.CurrentlyEquippped:Observe(print)
 
     Cardinal.Replicator.ListenToNewReplica("Items", function(Replica) 
-        Replica.Changed:Connect(print)
+        Replica:ListenToChange("Items", print)
         Replica:ListenToWrite("Give", function(...)
             print(...)
         end)
