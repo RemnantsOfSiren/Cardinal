@@ -15,10 +15,9 @@ export type ReplicaConfig = {
 	WriteLib: ModuleScript?,
 }
 
+local Replica = newproxy(false)
+
 local Replicas = {}
-
-local ReplicaServer = {}
-
 local WriteLibCache = {}
 
 local function LoadWriteLib(WriteLibModule: ModuleScript)
@@ -76,10 +75,16 @@ MainBridge.OnServerInvoke = function(Player)
 	return _Replicas
 end
 
+local ReplicaServer = {
+	Replica = Replica,
+}
+
 function ReplicaServer.NewReplica(Config: ReplicaConfig)
 	local Id = HttpService:GenerateGUID(false)
 
-	local Replica = {}
+	local Replica = {
+		__type = Replica
+	}
 	
 	local WriteFunctionFlag: boolean = false
 
@@ -136,8 +141,10 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 	end), "Disconnect")
 
 	Replica.Data = Config.Data
+	Replica._OldData = Util.CopyTable(Replica.Data, true)
 
 	local function Update(Indicies, Value)
+		Replica._OldData = Util.CopyTable(Replica.Data, true)
 		local Pointer = Replica.Data
 
 		for I = 1, #Indicies - 1 do
@@ -312,10 +319,15 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 				else Indicies
 		) :: { unknown }
 
-		return Replica.Changed:Connect(function(ChangedIndicies, Value, OldValue)
+		return Replica.Changed:Connect(function(ChangedIndicies)
 			local Match = true
+			local _Data = Replica.Data
+			local _OldData = Replica._OldData
 
 			for I, Index in pairs(_Indicies) do
+				_Data = _Data[Index]
+				_OldData = _OldData[Index]
+
 				if Index ~= ChangedIndicies[I] then
 					Match = false
 					break
@@ -323,7 +335,7 @@ function ReplicaServer.NewReplica(Config: ReplicaConfig)
 			end
 
 			if Match then
-				task.spawn(Callback, Value, OldValue)
+				task.spawn(Callback, _Data, _OldData)
 			end
 		end)
 	end

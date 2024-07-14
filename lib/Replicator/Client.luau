@@ -6,6 +6,7 @@ local Util = require(script.Parent.Parent.Utilities.Table) :: { any }
 
 local MainBridge = BridgeNet.ClientBridge("ReplicaServer")
 
+local Replica = newproxy(false)
 local Replicators = {}
 
 local function GetAllIndicies(Data)
@@ -41,7 +42,9 @@ local function CreateReplicator(Name)
 			return
 		end
 		
-		local Replica = {}
+		local Replica = {
+			__type = Replica,
+		}
 		
 		Replica.WriteFunctionFlag = false
 		Replica.WriteLib = WriteLib and require(WriteLib)
@@ -70,11 +73,11 @@ local function CreateReplicator(Name)
 
 			local ReturnedValues = Replica.WriteLib[FunctionName](Replica, ...)
 
-			local Callbacks = Replicator._WriteCallbacks
+			local Callbacks = Replica._WriteCallbacks
 
 			if Callbacks[FunctionName] then
-				for _,Callback in ipairs(Callbacks) do
-					Callback(...)
+				for _, Callback in Callbacks do
+					task.spawn(Callback, ...)
 				end
 			end
 
@@ -83,26 +86,26 @@ local function CreateReplicator(Name)
 
 		function Replica:Update(Indicies, Value, OldValue)
 			Replica._OldData = Util.CopyTable(Replica.Data, true)
-			local Data = Replica.Data
+			local _Data = Replica.Data
 
 			for I = 1, #Indicies - 1 do
-				Data = Data[Indicies[I]]
+				_Data = _Data[Indicies[I]]
 			end
 
-			if not Data then
+			if not _Data then
 				return
 			end
 
 			local LastIndex = Indicies[#Indicies]
 
 			if typeof(LastIndex) == "number" then
-				if not Data[LastIndex] then
-					table.insert(Data, LastIndex, Value)
+				if not _Data[LastIndex] then
+					table.insert(_Data, LastIndex, Value)
 				elseif Value == nil then
-					table.remove(Data, LastIndex)
+					table.remove(_Data, LastIndex)
 				end
 			else
-				Data[Indicies[#Indicies]] = Value
+				_Data[Indicies[#Indicies]] = Value
 			end
 
 			Replica.Changed:Fire(Indicies, Value, OldValue)
@@ -217,9 +220,9 @@ MainBridge:Connect(function(Args)
 		local Replicator = Replicators[Name]
 
 		if Replicator then
-			local Replica = Replicator.Replicas[Id]
+			local _Replica = Replicator.Replicas[Id]
 
-			if not Replica then
+			if not _Replica then
 				return
 			end
 
@@ -237,12 +240,12 @@ MainBridge:Connect(function(Args)
 					end
 
 					local Index = _Indicies[#_Indicies]
-					Replica:Update(_Indicies, Pointer[Index], OldPointer[Index])
+					_Replica:Update(_Indicies, Pointer[Index], OldPointer[Index])
 				end
 				return
 			end
 
-			Replica:Update(Indicies, Value, OldValue)
+			_Replica:Update(Indicies, Value, OldValue)
 		end
 	elseif Args[1] == "Write" then
 		local Name = Args[2]
@@ -257,18 +260,16 @@ MainBridge:Connect(function(Args)
 		local Replicator = Replicators[Name]
 
 		if Replicator then
-			local Replica = Replicator.Replicas[Id]
+			local _Replica = Replicator.Replicas[Id]
 
-			Replica.WriteFunctionFlag = true
+			_Replica.WriteFunctionFlag = true
+			_Replica.WriteLib[FunctionName](_Replica, table.unpack(NewArgs))
+			_Replica.WriteFunctionFlag = false
 
-			Replica.WriteLib[FunctionName](Replica, table.unpack(NewArgs))
-
-			Replica.WriteFunctionFlag = false
-
-			local Callbacks = Replica._WriteCallbacks[FunctionName]
+			local Callbacks = _Replica._WriteCallbacks[FunctionName]
 			if Callbacks then
 				for _, Callback in ipairs(Callbacks) do
-					Callback(table.unpack(NewArgs))
+					task.spawn(Callback, table.unpack(NewArgs))
 				end
 			end
 		end
@@ -276,9 +277,9 @@ MainBridge:Connect(function(Args)
 		local _, Name, Id = unpack(Args)
 		local Replicator = Replicators[Name]
 		if Replicator then
-			local Replica = Replicator.Replicas[Id]
-			if Replica then
-				Replica:Destroy()
+			local _Replica = Replicator.Replicas[Id]
+			if _Replica then
+				_Replica:Destroy()
 			end
 		end
 	end
@@ -296,14 +297,16 @@ task.spawn(function()
 	end
 end)
 
-local ReplicaClient = {}
+local ReplicaClient = {
+	Replica = Replica,
+}
 
 function ReplicaClient.ListenToNewReplica(Name: string, Callback: (unknown) -> ())
 	local Replicator = Replicators[Name] or CreateReplicator(Name)
 	Replicator.Added:Connect(Callback)
 
-	for _, Replica in pairs(Replicator.Replicas) do
-		task.spawn(Callback, Replica)
+	for _, _Replica in pairs(Replicator.Replicas) do
+		task.spawn(Callback, _Replica)
 	end
 end
 

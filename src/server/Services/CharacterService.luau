@@ -31,11 +31,11 @@ function CharacterService:OnPlayerAdded(Player)
     })
 
     task.delay(5, function() 
-        -- Replica:Write("Give", "Sword", {
-        --     Name = "Sword",
-        --     Damage = 15
-        -- })
-        Replica:Set("Items.Health-Potion.Count", 2)
+        Replica:Write("Give", "Sword", {
+            Damage = 10,
+            Type = "Weapon"
+        })
+        Replica:Write("Take", "Sword")
     end)
 end
 
