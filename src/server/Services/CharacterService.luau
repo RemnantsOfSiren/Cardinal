@@ -9,34 +9,7 @@ local CharacterService = {
 }
 
 function CharacterService:OnPlayerAdded(Player)
-    local Replica = Cardinal.Replicator.NewReplica({
-        Name = "Items",
-        Data = {
-            Sword = {
-                Name = "Sword",
-                Damage = 10,
-            },
-            Shield = {
-                Name = "Shield",
-                Defense = 5,
-            },
-            Items = {
-                ["Health-Potion"] = {
-                    Count = 1
-                }
-            }
-        },
-        To = Player,
-        WriteLib = ReplicatedStorage.Shared.WriteLib
-    })
-
-    task.delay(5, function() 
-        Replica:Write("Give", "Sword", {
-            Damage = 10,
-            Type = "Weapon"
-        })
-        Replica:Write("Take", "Sword")
-    end)
+    task.delay(5, function() Player:LoadCharacter() end)
 end
 
 function CharacterService.Client:EquipItem(player, item)

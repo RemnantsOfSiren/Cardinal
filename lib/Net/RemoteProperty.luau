@@ -1,9 +1,22 @@
 local PlayerService = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
-local Util = require(script.Parent.Parent.Utilities.Table)
 local Trove = require(script.Parent.Parent.Parent.Trove) :: { any }
 local Signal = require(script.Parent.Parent.Parent.Signal) :: { any }
+
+local function CopyTable(Table: { any }, Deep: boolean?)
+	local NewTable = {}
+
+	for Index, Value in pairs(Table) do
+		if typeof(Value) == "table" and Deep then
+			NewTable[Index] = CopyTable(Value, Deep)
+		else
+			NewTable[Index] = Value
+		end
+	end
+
+	return NewTable
+end
 
 local RemoteProperty = {}
 RemoteProperty.__index = RemoteProperty
@@ -19,7 +32,7 @@ function RemoteProperty.new(Net: { CreateEvent: (self: unknown, string) -> unkno
         self._InitialValue = InitialValue
 
         local function OnPlayerAdded(Player: Player)
-            self.Values[Player] = if typeof(InitialValue) == "table" then Util.CopyTable(self._InitialValue :: { any }, true) else self._InitialValue
+            self.Values[Player] = if typeof(InitialValue) == "table" then CopyTable(self._InitialValue :: { any }, true) else self._InitialValue
         end
 
         for _, Player in PlayerService:GetPlayers() do

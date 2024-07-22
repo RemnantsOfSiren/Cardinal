@@ -95,7 +95,7 @@ local RunService = game:GetService("RunService")
 local PlayerService = game:GetService("Players")
 
 local Promise = require(script.Parent.Promise) :: { [any]: any }
-local Replicator = require(script.Replicator)
+
 local Net = require(script.Net)
 
 export type ClientNet = Net.ClientNet
@@ -174,7 +174,6 @@ local Signal = newproxy(false)
 local Property = newproxy(false)
 
 return {
-    Replicator = if IsServer then Replicator.ReplicaServer else Replicator.ReplicaClient,
 	Net = Net,
 	Player = if not IsServer then PlayerService.LocalPlayer else nil,
 	
@@ -210,32 +209,35 @@ return {
 		@param Parent: Instance, DeeporPredicate: (ModuleScript) -> boolean |boolean?, Exclusions: { string }? | The parent Instance to load from, whether to load deep, and any exclusions.
 		@return void
 	]]
-	Load = function(Parent: Instance, DeepOrPredicate: ((ModuleScript) -> (boolean) | boolean)?, Exclusions: { string }?)
+	Load = function(Parent: Instance, DeepOrPredicate: ((ModuleScript) -> boolean) | boolean?, Exclusions: { string }?)
 		if Started then
 			return Promise.reject("Can't load Modules once the Loader is already started.")
 		end
 
-		DeepOrPredicate = DeepOrPredicate or false
+		if not DeepOrPredicate then
+			DeepOrPredicate = false
+		end
 
-		local Modules = {}
-		local DeepOrPredicateType: string = typeof(DeepOrPredicate)
-		if DeepOrPredicateType == "function" then
-			for _,ModuleScript: ModuleScript in ipairs(Parent:GetDescendants()) do
+		local Modules = {} :: { Instance }
+
+		if typeof(DeepOrPredicate) == "function" then
+			for _, ModuleScript in Parent:GetDescendants() do
 				if ModuleScript:IsA("ModuleScript") and DeepOrPredicate(ModuleScript) then
 					table.insert(Modules, ModuleScript)
 				end
 			end
-		elseif DeepOrPredicateType == "boolean" then
-			Modules = if DeepOrPredicate then Parent:GetDescendants() else Parent:GetChildren()
+		elseif typeof(DeepOrPredicate) == "boolean" then
+			Modules = if DeepOrPredicate then 
+				Parent:GetDescendants() else Parent:GetChildren()
 		end
 
-		for _, Module in pairs(Modules) do
-			if Module:IsA("ModuleScript") then
-				if Exclusions and IsAnExclusion(Exclusions, Module.Name) then
+		for _, Object in pairs(Modules) do
+			if Object:IsA("ModuleScript") then
+				if Exclusions and IsAnExclusion(Exclusions, Object.Name) then
 					continue
 				end
 				
-				Load(Module)
+				Load(Object)
 			end
 		end
 
