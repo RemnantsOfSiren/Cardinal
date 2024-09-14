@@ -98,6 +98,45 @@ local Promise = require(script.Parent.Promise) :: { [any]: any }
 
 local Net = require(script.Net)
 
+type Packet = {
+	Args: { [any]: any },
+	Sent: boolean,
+}
+
+local EventLog: { [string]: { Packet }} = {
+	["PlayerAdded"] = {},
+	["CharacterAdded"] = {},
+	["PlayerRemoving"] = {},
+} -- Pre-emptive table in-case events are fired before the client/server is ready.
+
+local function CreatePacket(...): Packet
+	return {
+		Args = {...},
+		Sent = false,
+	}
+end
+
+local function OnPlayerAdded(Player)
+	table.insert(EventLog["PlayerAdded"], CreatePacket(Player))
+
+	local function OnCharacterAdded(Character)
+		table.insert(EventLog["CharacterAdded"], CreatePacket(Character, Player))
+	end
+
+	local Character = Player.Character or Player.CharacterAdded:Wait()
+	OnCharacterAdded(Character)
+	Player.CharacterAdded:Connect(OnCharacterAdded)
+end
+
+PlayerService.PlayerAdded:Connect(OnPlayerAdded)
+for _, Player in PlayerService:GetPlayers() do
+	task.spawn(OnPlayerAdded, Player)
+end
+
+PlayerService.PlayerRemoving:Connect(function(Player)
+	table.insert(EventLog["PlayerRemoving"], CreatePacket(Player))
+end)
+
 export type ClientNet = Net.ClientNet
 export type ServerNet = Net.ServerNet
 export type ServerEvent = Net.ServerEvent
@@ -173,8 +212,9 @@ export type Controller = {
 local Signal = newproxy(false)
 local Property = newproxy(false)
 
-return {
+return table.freeze({
 	Net = Net,
+	Icon = if not IsServer then require(script.Icon) else nil,
 	Player = if not IsServer then PlayerService.LocalPlayer else nil,
 	
 	CreateSignal = function()
@@ -313,14 +353,15 @@ return {
 			local Init = Module.OnInit or Module.Init
 
 			if Init then
-				table.insert(
-					Temp,
-					Promise.try(function()
-						debug.profilebegin(`Initializing {Name}`)
-						task.spawn(Init, Module)
-						debug.profileend()
-					end)
-				)
+				task.spawn(function() 
+					debug.profilebegin(`Initializing {Name}`)
+					table.insert(Temp, Promise.try(function()
+						Module.__Initialized = false
+						Init(Module) 
+						Module.__Initialized = true
+					end))
+					debug.profileend()
+				end)
 			end
 		end
 
@@ -332,14 +373,15 @@ return {
 					local Start = Module.OnStart or Module.Start
 
 					if Start then
-						table.insert(
-							Temp,
-							Promise.try(function()
-								debug.profilebegin(`Starting {Name}`)
-								task.spawn(Start, Module)
-								debug.profileend()
-							end)
-						)
+						task.spawn(function() 
+							debug.profilebegin(`Starting {Name}`)
+							table.insert(Temp, Promise.try(function()
+								Module.__Started = false
+								Start(Module) 
+								Module.__Started = true
+							end))
+							debug.profileend()
+						end)
 					end
 				end
 			end)
@@ -361,21 +403,33 @@ return {
                 local Nets = {}
 
 				for Name, Module in pairs(Loaded) do
-                    if Module.Client then
+					if Module.__Initialized ~= nil then
+						repeat
+							task.wait()
+						until Module.__Initialized
+					end
+
+					if Module.__Started ~= nil then
+						repeat
+							task.wait()
+						until Module.__Started
+					end
+					
+					if Module.Client then
 						Module.Client.Server = Module
 	
-                        local _Net = Net.new(Module.Name or Name) :: { CreateEvent: (any, string) -> { [any]: any } }
+						local _Net = Net.new(Module.Name or Name) :: { CreateEvent: (any, string) -> { [any]: any } }
 						Module.Net = _Net
 
-                        local ClientEvents = {}
+						local ClientEvents = {}
 						local ClientSignals = {}
 						local ClientProperties = {}
 						
-                        local GetEvents = _Net:CreateEvent("GetEvents")
+						local GetEvents = _Net:CreateEvent("GetEvents")
 
-                        GetEvents:SetCallback(function()
-                            return ClientEvents
-                        end)
+						GetEvents:SetCallback(function()
+							return ClientEvents
+						end)
 
 						local GetProperties = _Net:CreateEvent("GetProperties")
 
@@ -388,17 +442,17 @@ return {
 						GetSignals:SetCallback(function()
 							return ClientSignals
 						end)
-        
-                        for Event, Callback in Module.Client do
-                            if typeof(Callback) == "function" then
-                                local _Event = _Net:CreateEvent(Event)
+		
+						for Event, Callback in Module.Client do
+							if typeof(Callback) == "function" then
+								local _Event = _Net:CreateEvent(Event)
 
-                                _Event:SetCallback(function(Player, ...) 
+								_Event:SetCallback(function(Player, ...) 
 									return Callback(Module.Client, Player, ...)
 								end)
 
-                                table.insert(ClientEvents, Event)
-                            elseif typeof(Callback) == "userdata" and Callback == Signal then
+								table.insert(ClientEvents, Event)
+							elseif typeof(Callback) == "userdata" and Callback == Signal then
 								Module.Client[Event] = Net.CreateSignal(_Net, Event)
 								table.insert(ClientSignals, Event)
 							elseif typeof(Callback) == "table" and typeof(Callback[1]) == "userdata" and Callback[1] == Property then
@@ -406,10 +460,10 @@ return {
 								Module.Client[Event] = Net.CreateProperty(_Net, Event, InitialValue)
 								table.insert(ClientProperties, { Event, InitialValue })
 							end
-                        end
+						end
 
-                        table.insert(Nets, Name)
-                    end
+						table.insert(Nets, Name)
+					end
 
 					for Function, Callback in pairs(Module) do
 						if Function == "Name" or typeof(Callback) ~= "function" then
@@ -454,6 +508,44 @@ return {
 					end)
 				end
 
+				local function CharacterAdded(Character, Player)
+					if not Character:IsDescendantOf(workspace) then
+						while Player:IsDescendantOf(PlayerService) and not Character:IsDescendantOf(workspace) do
+							task.wait()
+						end
+
+						if not Player:IsDescendantOf(PlayerService) then
+							return
+						end
+					end
+
+					local Start = tick()
+
+					while not Character.PrimaryPart and tick() - Start < 10 do
+						task.wait()
+					end
+					
+					if tick() - Start >= 10 then
+						warn("Character's PrimaryPart took too long to be parented. Some code may not function as expected.")
+					end
+
+					if #Events.PlayerService.CharacterAdded > 0 then
+						for _, Callback in pairs(Events.PlayerService.CharacterAdded) do
+							task.spawn(Callback, Character, Player)
+						end
+					end
+
+					if
+						RunService:IsClient()
+						and Player == PlayerService.LocalPlayer
+						and #Events.PlayerService.LocalCharacter > 0
+					then
+						for _, Callback in pairs(Events.PlayerService.LocalCharacter) do
+							task.spawn(Callback, Character, Player)
+						end
+					end
+				end
+
 				local function PlayerAdded(Player)
 					if #Events.PlayerService.PlayerAdded > 0 then
 						for _, Callback in pairs(Events.PlayerService.PlayerAdded) do
@@ -470,42 +562,6 @@ return {
 							task.spawn(Callback, Player)
 						end
 					end
-
-					local function CharacterAdded(Character)
-						if not Character:IsDescendantOf(workspace) then
-							while Player:IsDescendantOf(PlayerService) and not Character:IsDescendantOf(workspace) do
-								task.wait()
-							end
-
-							if not Player:IsDescendantOf(PlayerService) then
-								return
-							end
-						end
-
-						Character:WaitForChild("HumanoidRootPart")
-
-						if #Events.PlayerService.CharacterAdded > 0 then
-							for _, Callback in pairs(Events.PlayerService.CharacterAdded) do
-								task.spawn(Callback, Character, Player)
-							end
-						end
-
-						if
-							RunService:IsClient()
-							and Player == PlayerService.LocalPlayer
-							and #Events.PlayerService.LocalCharacter > 0
-						then
-							for _, Callback in pairs(Events.PlayerService.LocalCharacter) do
-								task.spawn(Callback, Character, Player)
-							end
-						end
-					end
-
-					if PlayerService.CharacterAutoLoads and Player.Character then
-						task.spawn(CharacterAdded, Player.Character)
-					end
-
-					Player.CharacterAdded:Connect(CharacterAdded)
 				end
 
 				local function PlayerRemoving(Player)
@@ -516,26 +572,44 @@ return {
 					end
 				end
 
-				PlayerService.PlayerAdded:Connect(PlayerAdded)
-				PlayerService.PlayerRemoving:Connect(PlayerRemoving)
+				local Thread = task.spawn(function() 
+					while true do
+						for Event: string, Log: { Packet } in EventLog do
+							for I = #Log, 1, -1 do
+								local Packet: Packet = Log[I]
 
-				for _, Player in pairs(PlayerService:GetPlayers()) do
-					task.spawn(PlayerAdded, Player)
-				end
+								if not Packet.Sent then
+									if Event == "PlayerAdded" then
+										task.spawn(PlayerAdded, unpack(Packet.Args))
+									elseif Event == "CharacterAdded" then
+										task.spawn(CharacterAdded, unpack(Packet.Args))
+									elseif Event == "PlayerRemoving" then
+										task.spawn(PlayerRemoving, unpack(Packet.Args))
+									end
+
+									Packet.Sent = true
+								else
+									table.remove(Log, I)
+								end
+							end
+						end
+						task.wait()
+					end
+				end)
 
 				if RunService:IsServer() then
 					game:BindToClose(function()
+						task.cancel(Thread)
+
 						for _, Player in pairs(PlayerService:GetPlayers()) do
 							task.spawn(PlayerRemoving, Player)
 						end
 					end)
-				end
-
-				if RunService:IsServer() then
+			
 					script:SetAttribute("ServerReady", true)
 				end
 
 				Started = true
 			end)
 	end,
-}
+})
