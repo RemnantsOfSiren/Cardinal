@@ -347,9 +347,60 @@ return table.freeze({
 			return Promise.reject("Loader is already started.")
 		end
 
+		local Nets = {}
 		local Temp = {}
 
 		for Name, Module in pairs(Loaded) do
+			if Module.Client then
+				Module.Client.Server = Module
+
+				local _Net = Net.new(Module.Name or Name) :: { CreateEvent: (any, string) -> { [any]: any } }
+				Module.Net = _Net
+
+				local ClientEvents = {}
+				local ClientSignals = {}
+				local ClientProperties = {}
+				
+				local GetEvents = _Net:CreateEvent("GetEvents")
+
+				GetEvents:SetCallback(function()
+					return ClientEvents
+				end)
+
+				local GetProperties = _Net:CreateEvent("GetProperties")
+
+				GetProperties:SetCallback(function()
+					return ClientProperties
+				end)
+
+				local GetSignals = _Net:CreateEvent("GetSignals")
+
+				GetSignals:SetCallback(function()
+					return ClientSignals
+				end)
+
+				for Event, Callback in Module.Client do
+					if typeof(Callback) == "function" then
+						local _Event = _Net:CreateEvent(Event)
+
+						_Event:SetCallback(function(Player, ...) 
+							return Callback(Module.Client, Player, ...)
+						end)
+
+						table.insert(ClientEvents, Event)
+					elseif typeof(Callback) == "userdata" and Callback == Signal then
+						Module.Client[Event] = Net.CreateSignal(_Net, Event)
+						table.insert(ClientSignals, Event)
+					elseif typeof(Callback) == "table" and typeof(Callback[1]) == "userdata" and Callback[1] == Property then
+						local InitialValue = Callback[2]
+						Module.Client[Event] = Net.CreateProperty(_Net, Event, InitialValue)
+						table.insert(ClientProperties, { Event, InitialValue })
+					end
+				end
+
+				table.insert(Nets, Name)
+			end
+
 			local Init = Module.OnInit or Module.Init
 
 			if Init then
@@ -400,8 +451,6 @@ return table.freeze({
 					Events.PlayerService.LocalCharacter = {}
 				end
 
-                local Nets = {}
-
 				for Name, Module in pairs(Loaded) do
 					if Module.__Initialized ~= nil then
 						repeat
@@ -413,56 +462,6 @@ return table.freeze({
 						repeat
 							task.wait()
 						until Module.__Started
-					end
-					
-					if Module.Client then
-						Module.Client.Server = Module
-	
-						local _Net = Net.new(Module.Name or Name) :: { CreateEvent: (any, string) -> { [any]: any } }
-						Module.Net = _Net
-
-						local ClientEvents = {}
-						local ClientSignals = {}
-						local ClientProperties = {}
-						
-						local GetEvents = _Net:CreateEvent("GetEvents")
-
-						GetEvents:SetCallback(function()
-							return ClientEvents
-						end)
-
-						local GetProperties = _Net:CreateEvent("GetProperties")
-
-						GetProperties:SetCallback(function()
-							return ClientProperties
-						end)
-
-						local GetSignals = _Net:CreateEvent("GetSignals")
-
-						GetSignals:SetCallback(function()
-							return ClientSignals
-						end)
-		
-						for Event, Callback in Module.Client do
-							if typeof(Callback) == "function" then
-								local _Event = _Net:CreateEvent(Event)
-
-								_Event:SetCallback(function(Player, ...) 
-									return Callback(Module.Client, Player, ...)
-								end)
-
-								table.insert(ClientEvents, Event)
-							elseif typeof(Callback) == "userdata" and Callback == Signal then
-								Module.Client[Event] = Net.CreateSignal(_Net, Event)
-								table.insert(ClientSignals, Event)
-							elseif typeof(Callback) == "table" and typeof(Callback[1]) == "userdata" and Callback[1] == Property then
-								local InitialValue = Callback[2]
-								Module.Client[Event] = Net.CreateProperty(_Net, Event, InitialValue)
-								table.insert(ClientProperties, { Event, InitialValue })
-							end
-						end
-
-						table.insert(Nets, Name)
 					end
 
 					for Function, Callback in pairs(Module) do
