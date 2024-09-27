@@ -1,19 +1,13 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-local Cardinal = require(ReplicatedStorage.Packages.Cardinal) :: { any }
-
-local CharacterService = {
-    Client = {
-        CurrentlyEquippped = Cardinal.CreateProperty("Nothing"),
-    };
-}
+local CharacterService = {}
 
 function CharacterService:OnPlayerAdded(Player)
-    task.delay(5, function() Player:LoadCharacter() end)
+    task.delay(5, function() 
+        Player:LoadCharacter() 
+    end)
 end
 
-function CharacterService.Client:EquipItem(player, item)
-    self.CurrentlyEquippped:SetFor(player, item)
+function CharacterService:OnCharacterAdded(Character)
+    print("Character added to game")
 end
 
 return CharacterService

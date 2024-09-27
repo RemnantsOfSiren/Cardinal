@@ -15,12 +15,24 @@ if RunService:IsServer() then
     function RemoteSignal:Fire(Player: Player, ...: any)
         self.Event:Fire(Player, ...)
     end
-
+    
     function RemoteSignal:FireAll(...)
         self.Event:FireAll(...)
     end
+
+    function RemoteSignal:FireAllExcept(Exempt: { Player } | Player, ...)
+        self.Event:FireAllExcept(Exempt, ...)
+    end
+
+    function RemoteSignal:Connect(Callback: (Player: Player, ...any) -> ())
+        return self.Event:Connect(Callback)
+    end
 else
-    function RemoteSignal:Connect(Callback: () -> ())
+    function RemoteSignal:Fire(...)
+        self.Event:Fire(...)
+    end
+
+    function RemoteSignal:Connect(Callback: (...any) -> ())
         return self.Event:Connect(Callback)
     end
 end
