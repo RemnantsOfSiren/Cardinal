@@ -350,10 +350,8 @@ return table.freeze({
 		local Nets = {}
 		local Temp = {}
 
-		for Name, Module in pairs(Loaded) do
+		for Name, Module in Loaded do
 			if Module.Client then
-				Module.Client.Server = Module
-
 				local _Net = Net.new(Module.Name or Name) :: { CreateEvent: (any, string) -> { [any]: any } }
 				Module.Net = _Net
 
@@ -400,7 +398,9 @@ return table.freeze({
 
 				table.insert(Nets, Name)
 			end
+		end
 
+		for Name, Module in pairs(Loaded) do
 			local Init = Module.OnInit or Module.Init
 
 			if Init then
