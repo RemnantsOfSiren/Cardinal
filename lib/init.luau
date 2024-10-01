@@ -352,6 +352,8 @@ return table.freeze({
 
 		for Name, Module in Loaded do
 			if Module.Client then
+				Module.Client.Server = Module
+				
 				local _Net = Net.new(Module.Name or Name) :: { CreateEvent: (any, string) -> { [any]: any } }
 				Module.Net = _Net
 
