@@ -104,11 +104,9 @@ local function MakeEvent(Net: ServerNet | ClientNet, EventName: string): ServerE
 				return
 			end
 
-			table.remove(Args, 1)
-
 			if Connections and #Connections > 0 then
 				for _, Callback in pairs(Connections) do
-					task.spawn(Callback, Player, unpack(Args))
+					task.spawn(Callback, Player, unpack(Args, 2))
 				end
 			end
 		end)
@@ -125,11 +123,9 @@ local function MakeEvent(Net: ServerNet | ClientNet, EventName: string): ServerE
 				return
 			end
 
-			table.remove(Args, 1)
-
 			if Connections and #Connections > 0 then
 				for _, Callback in pairs(Connections) do
-					task.spawn(Callback, unpack(Args))
+					task.spawn(Callback, unpack(Args, 2))
 				end
 			end
 		end)
