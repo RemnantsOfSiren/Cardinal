@@ -5,5 +5,5 @@ local Cardinal = require(ReplicatedStorage.Packages.Cardinal)
 Cardinal.Load(script.Controllers)
 
 Cardinal.Start():andThen(function()
-    print("Client started")
+	print("Client started")
 end)

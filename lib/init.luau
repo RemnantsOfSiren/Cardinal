@@ -123,12 +123,15 @@ local function OnPlayerAdded(Player)
 		table.insert(EventLog["CharacterAdded"], CreatePacket(Character, Player))
 	end
 
-	local Character = Player.Character or Player.CharacterAdded:Wait()
-	OnCharacterAdded(Character)
+	if Player.Character then
+		task.spawn(OnCharacterAdded, Player.Character)
+	end
+
 	Player.CharacterAdded:Connect(OnCharacterAdded)
 end
 
 PlayerService.PlayerAdded:Connect(OnPlayerAdded)
+
 for _, Player in PlayerService:GetPlayers() do
 	task.spawn(OnPlayerAdded, Player)
 end
@@ -453,7 +456,7 @@ return table.freeze({
 					Events.PlayerService.LocalCharacter = {}
 				end
 
-				for Name, Module in pairs(Loaded) do
+				for _, Module in pairs(Loaded) do
 					if Module.__Initialized ~= nil then
 						repeat
 							task.wait()
@@ -575,9 +578,12 @@ return table.freeze({
 
 				local Thread = task.spawn(function() 
 					while true do
-						for Event: string, Log: { Packet } in EventLog do
+						for Event: string, Log: { Packet } in EventLog do							
 							for I = #Log, 1, -1 do
 								local Packet: Packet = Log[I]
+								if not Packet then
+									continue
+								end
 
 								if not Packet.Sent then
 									if Event == "PlayerAdded" then
@@ -587,7 +593,6 @@ return table.freeze({
 									elseif Event == "PlayerRemoving" then
 										task.spawn(PlayerRemoving, unpack(Packet.Args))
 									end
-
 									Packet.Sent = true
 								else
 									table.remove(Log, I)
@@ -611,6 +616,7 @@ return table.freeze({
 				end
 
 				Started = true
+				script:SetAttribute("Started", true)
 			end)
 	end,
 })
