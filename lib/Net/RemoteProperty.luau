@@ -88,6 +88,7 @@ end
 
 function RemoteProperty:Destroy()
     self.Cleaner:Destroy()
+    table.clear(self)
 end
 
 return RemoteProperty

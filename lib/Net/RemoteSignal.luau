@@ -12,8 +12,8 @@ function RemoteSignal.new(Net: { CreateEvent: (self: unknown, string) -> unknown
 end
 
 if RunService:IsServer() then
-    function RemoteSignal:Fire(Player: Player, ...: any)
-        self.Event:Fire(Player, ...)
+    function RemoteSignal:Fire(Players: { Player } | Player, ...: any)
+        self.Event:Fire(Players, ...)
     end
     
     function RemoteSignal:FireAll(...)
@@ -35,6 +35,10 @@ else
     function RemoteSignal:Connect(Callback: (...any) -> ())
         return self.Event:Connect(Callback)
     end
+end
+
+function RemoteSignal:Destroy()
+    table.clear(self)
 end
 
 return RemoteSignal
