@@ -9,87 +9,239 @@
 	allowing for developer freedom.
 
 	All events will run after OnInit and OnStart. This is to ensure all dependencies are loaded and started before any events are fired.
-
-	Service
-	[
-		OnInit?: () -> ()
-		OnStart?: () -> ()
-	
-		OnPlayerAdded?: (Player: Player) -> ()
-		OnPlayerRemoving?: (Player: Player) -> ()
-		OnCharacterAdded?: (Character: Model, Player: Player) -> ()
-
-		On[Stepped, Heartbeat, PreAnimation, PreSimulation, PostAnimation, PostSimulation]?: (...) -> ()
-	]
-
-	```lua
-		local Service = {}
-
-		function Service:OnInit()
-			print("Service Initialized")
-		end
-
-		function Service:OnStart()
-			print("Service Started")
-		end
-
-		function Service:OnPlayerAdded(Player)
-			print("Player Added: ", Player)
-		end
-
-		function Service:OnCharacterAdded(Character, Player)
-			print("Character Added: ", Character, Player)
-		end
-
-		function Service:OnHeartbeat(DeltaTime)
-			print("Heartbeats stepping...")
-		end
-
-		return Service
-	```
-
-	Controller
-	[
-		OnInit?: () -> ()
-		OnStart?: () -> ()
-	
-		OnPlayerAdded?: (Player: Player) -> ()
-		OnPlayerRemoving?: (Player: Player) -> ()
-		OnCharacterAdded?: (Character: Model, Player: Player) -> ()
-
-		OnLocalPlayer?: (Player: Player) -> () -> Only fires for the local Player
-		OnLocalCharacter?: (Character: Model, Player: Player) -> () -> Only fires for the local Character
-
-		On[Stepped, RenderStepped, Heartbeat, PreAnimation, PreSimulation, PostAnimation, PostSimulation]?: (...) -> ()
-	]
-
-	
-	```lua
-		local Controller = {}
-
-		function Controller:OnInit()
-			print("Controller Initialized")
-		end
-
-		function Controller:OnStart()
-			print("Controller Started")
-		end
-
-		function Controller:OnPlayerAdded(Player)
-			print("Player Added: ", Player)
-		end
-
-		function Controller:OnCharacterAdded(Character, Player)
-			print("Character Added: ", Character, Player)
-		end
-
-		function Controller:OnHeartbeat(DeltaTime)
-			print("Heartbeats stepping...")
-		end
-
-		return Service
-	```
 ]]
+
+--[=[
+	@prop Client? {[string]: (self: self, Player: Player, ...) -> nil | () -> nil } | nil
+	@within Service
+]=]
+--[=[
+	@method OnInit?
+	@within Service
+	Fires when the Service is initialized.
+]=]
+--[=[
+	@method OnStart?
+	@within Service
+	Fires when the Service is Started.
+]=]
+--[=[
+	@method OnPlayerAdded?
+	@within Service
+	Fires when a Player is added.
+]=]
+--[=[
+	@method OnPlayerRemoving?
+	@within Service
+	Fires when a Player is removed.
+]=]
+--[=[
+	@method OnCharacterAdded?
+	@within Service
+	@param Character Instance
+	@param Player Player
+	Fires when a Character is added.
+]=]
+--[=[
+	@method OnStepped?
+	@within Service
+	@param ElapsedTime number
+	@param DeltaTime number
+	Fires when the Stepped event is fired.
+]=]
+--[=[
+	@method OnHeartbeat?
+	@within Service
+	@param DeltaTime number
+	Fires when the Heartbeat event is fired.
+]=]
+--[=[
+	@method OnPreAnimation?
+	@within Service
+	@param DeltaTime number
+	Fires when the PreAnimation event is fired.
+]=]
+--[=[
+	@method OnPreSimulation?
+	@within Service
+	@param DeltaTime number
+	Fires when the PreSimulation event is fired.
+]=]
+--[=[
+	@method OnPostAnimation?
+	@within Service
+	@param DeltaTime number
+	Fires when the PostAnimation event is fired.
+]=]
+--[=[
+	@method OnPostSimulation?
+	@within Service
+	@param DeltaTime number
+	Fires when the PostSimulation event is fired.
+]=]
+
+--[=[
+	@class Service
+	@server
+
+	All functions are optional for you to add, and will be called if they exist.
+	
+	Example Service
+	```lua
+	local ReplicatedStorage = game:GetService("ReplicatedStorage")
+	local Packages = ReplicatedStorage:WaitForChild("Packages")
+	local Cardinal = require(Packages:WaitForChild("Cardinal"))
+
+	local Service = {
+		Client = {
+			TestSignal = Cardinal.CreateSignal(),
+			TestProperty = Cardinal.CreateProperty(0),
+		},
+	}
+
+	function Service:OnInit()
+		print("Service Initialized")
+	end
+
+	function Service:OnStart()
+		print("Service Started")
+	end
+
+	function Service:OnPlayerAdded(Player)
+		print("Player Added: ", Player)
+	end
+
+	function Service:OnCharacterAdded(Character, Player)
+		print("Character Added: ", Character, Player)
+	end
+
+	function Service:OnHeartbeat(DeltaTime)
+		print("Heartbeats stepping...")
+	end
+
+	return Service
+	```
+]=]
+
+--[=[
+	@method OnInit
+	@within Controller
+	Fires when the Controller is initialized.
+]=]
+--[=[
+	@method OnStart
+	@within Controller
+	Fires when the Controller is Started.
+]=]
+--[=[
+	@method OnPlayerAdded
+	@within Controller
+	@param Player Player
+	Fires when a Player is added.
+]=]
+--[=[
+	@method OnPlayerRemoving
+	@within Controller
+	@param Player Player
+	Fires when a Player is removed.
+]=]
+--[=[
+	@method OnCharacterAdded
+	@within Controller
+	@param Character Instance
+	@param Player Player
+	Fires when a Character is added.
+]=]
+--[=[
+	@method OnLocalPlayer
+	@within Controller
+	@param Player Player
+	Fires when the local player is added.
+]=]
+--[=[
+	@method OnLocalCharacter
+	@within Controller
+	@param Character Instance
+	@param Player Player
+	Fires when the local player has a Character added.
+]=]
+--[=[
+	@method OnStepped
+	@within Controller
+	@param ElapsedTime number
+	@param DeltaTime number
+	Fires when the Stepped event is fired.
+]=]
+--[=[
+	@method OnRenderStepped
+	@within Controller
+	@param DeltaTime number
+	Fires when the RenderStepped event is fired.
+]=]
+--[=[
+	@method OnHeartbeat
+	@within Controller
+	@param DeltaTime number
+	Fires when the Heartbeat event is fired.
+]=]
+--[=[
+	@method OnPreAnimation
+	@within Controller
+	@param DeltaTime number
+	Fires when the PreAnimation event is fired.
+]=]
+--[=[
+	@method OnPreSimulation
+	@within Controller
+	@param DeltaTime number
+	Fires when the PreSimulation event is fired.
+]=]
+--[=[
+	@method OnPostAnimation
+	@within Controller
+	@param DeltaTime number
+	Fires when the PostAnimation event is fired.
+]=]
+--[=[
+	@method OnPostSimulation
+	@within Controller
+	@param DeltaTime number
+	Fires when the PostSimulation event is fired.
+]=]
+
+--[=[
+	@class Controller
+	@client
+	
+	All functions are optional for you to add, and will be called if they exist.
+
+	Example Controller:
+	```lua
+	local Controller = {}
+
+	function Controller:OnInit()
+		print("Controller Initialized")
+	end
+
+	function Controller:OnStart()
+		print("Controller Started")
+	end
+
+	function Controller:OnPlayerAdded(Player)
+		print("Player Added: ", Player)
+	end
+
+	function Controller:OnCharacterAdded(Character, Player)
+		print("Character Added: ", Character, Player)
+	end
+
+	function Controller:OnHeartbeat(DeltaTime)
+		print("Heartbeats stepping...")
+	end
+
+	return Service
+	```
+]=]
 
 local RunService = game:GetService("RunService")
 local PlayerService = game:GetService("Players")
@@ -215,6 +367,68 @@ export type Controller = {
 local Signal = newproxy(false)
 local Property = newproxy(false)
 
+--[=[
+	@function Load
+	@within Cardinal
+	@param Parent: Instance
+	@param DeeporPredicate: (ModuleScript) -> boolean | boolean?, 
+	@param Exclusions: { string }?
+	@return Promise<string>
+	Loads a ModuleScript into the Loader. 
+
+	DeepOrPredicate can be a function that returns a boolean, or a boolean, using the boolean will determine if the function should be deep or and the function will be used to determine if the ModuleScript should be loaded.
+
+	Exclusions is an optional table of strings that will be used to exclude certain ModuleScripts from being loaded.
+]=]
+
+--[=[
+	@function Start
+	@within Cardinal
+	@return Promise<void>
+	Starts the Loader, initializing and starting all services/controllers.
+]=]
+
+--[=[
+	@function GetService
+	@within Cardinal
+	@param Name: string
+	@return table | nil
+	@client
+	Gets a service from the Loader by name (client only, and case sensitive).
+]=]
+
+--[=[
+	@function CreateSignal
+	@within Cardinal
+	@return SignalFlag
+	Flags that a new "Remote" Signal should be made
+]=]
+
+--[=[
+	@function CreateProperty
+	@within Cardinal
+	@return SignalFlag
+	Flags that a new "Remote" Signal should be made
+]=]
+
+--[=[
+	@function OnStart
+	@within Cardinal
+	@return Promise<nil>
+	@yields
+	Waits for the Loader to start.
+]=]
+
+--[=[
+	@prop Net Net
+	@within Cardinal
+]=]
+
+--[=[
+	@class Cardinal	
+	The main driver functions for cardinal
+]=]
+
 return table.freeze({
 	Net = Net,
 	Icon = if not IsServer then require(script.Icon) else nil,
@@ -225,14 +439,9 @@ return table.freeze({
 	end,
 
 	CreateProperty = function(InitialValue: any)
-		return {Property, InitialValue } 
+		return { Property, InitialValue } 
 	end,
 
-	--[[
-		@function OnStart
-		@description Waits for the Loader to start.
-		@return Promise<void>
-	]]
 	OnStart = function()
 		if Started then
 			return Promise.resolve()
@@ -246,12 +455,6 @@ return table.freeze({
 		end
 	end,
 
-	--[[
-		@function Load
-		@description Loads a ModuleScript into the Loader.
-		@param Parent: Instance, DeeporPredicate: (ModuleScript) -> boolean |boolean?, Exclusions: { string }? | The parent Instance to load from, whether to load deep, and any exclusions.
-		@return void
-	]]
 	Load = function(Parent: Instance, DeepOrPredicate: ((ModuleScript) -> boolean) | boolean?, Exclusions: { string }?)
 		if Started then
 			return Promise.reject("Can't load Modules once the Loader is already started.")
@@ -287,11 +490,6 @@ return table.freeze({
 		return Promise.resolve("Completed")
 	end,
 
-	--[[
-		@function GetService
-		@description Gets a service from the Loader by name (client only, and case sensitive).
-		@return table | nil
-	]]
     GetService = function(Name: string)
         if IsServer then
             return warn("GetService can only be called on the Client.")
@@ -303,7 +501,7 @@ return table.freeze({
             if Found then
                 return Found
             else
-				local NetworkEvents = script:WaitForChild("NetworkEvents")
+				local NetworkEvents = script:WaitForChild("NetworkEvents") :: StringValue
 				local Nets = NetworkEvents.Value:split(":")
 				
 				if table.find(Nets, Name) then
@@ -340,11 +538,7 @@ return table.freeze({
         end
     end,
 
-	--[[
-		@function Start
-		@description Starts the Loader, initializing and starting all services/controllers.
-		@return Promise<void>
-	]]
+
 	Start = function()
 		if Started then
 			return Promise.reject("Loader is already started.")
@@ -512,7 +706,7 @@ return table.freeze({
 					end)
 				end
 
-				local function CharacterAdded(Character, Player)
+				local function CharacterAdded(Character: Instance, Player: Player)
 					if not Character:IsDescendantOf(workspace) then
 						while Player:IsDescendantOf(PlayerService) and not Character:IsDescendantOf(workspace) do
 							task.wait()
@@ -525,10 +719,12 @@ return table.freeze({
 
 					local Start = tick()
 
-					while not Character.PrimaryPart and tick() - Start < 10 do
-						task.wait()
+					if Character:IsA("Model") then
+						while not Character.PrimaryPart and tick() - Start < 10 do
+							task.wait()
+						end
 					end
-					
+						
 					if tick() - Start >= 10 then
 						warn("Character's PrimaryPart took too long to be parented. Some code may not function as expected.")
 					end
@@ -550,7 +746,7 @@ return table.freeze({
 					end
 				end
 
-				local function PlayerAdded(Player)
+				local function PlayerAdded(Player: Player)
 					if #Events.PlayerService.PlayerAdded > 0 then
 						for _, Callback in pairs(Events.PlayerService.PlayerAdded) do
 							task.spawn(Callback, Player)

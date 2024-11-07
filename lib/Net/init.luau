@@ -134,7 +134,33 @@ local function MakeEvent(Net: ServerNet | ClientNet, EventName: string): ServerE
 	return Event
 end
 
-return {
+--[=[
+	@function CreateSignal
+	@within Net
+	@param Bridge ServerBridge | ClientBridge
+	@param Name string
+]=]
+
+--[=[
+	@function CreateProperty
+	@within Net
+	@param Bridge ServerBridge | ClientBridge
+	@param Name string
+	@param Value any
+]=]
+
+--[=[
+	@function new
+	@within Net
+	@param Name string
+	@return ServerNet | ClientNet
+]=]
+
+--[=[
+	@class Net
+	A Module that allows for easy communication between the Server and Client.
+]=]
+return table.freeze({
 	CreateSignal = RemoteSignal.new,
 	CreateProperty = RemoteProperty.new,
 
@@ -176,4 +202,4 @@ return {
 		CachedNets[Name] = Net
 		return Net
 	end,
-}
+})
