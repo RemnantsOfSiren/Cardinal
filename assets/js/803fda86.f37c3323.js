@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkdocs=self.webpackChunkdocs||[]).push([[650],{63891:s=>{s.exports=JSON.parse('{"sourceUrl":"https://github.com/RemnantsOfSiren/Cardinal/blob/master","baseUrl":"/Cardinal/","classOrder":[],"apiCategories":[]}')}}]);

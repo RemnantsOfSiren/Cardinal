@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="plugin-moonwave plugin-id-moonwave">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v2.3.1">
+<title data-rh="true">Service | Cardinal</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://RemnantsOfSiren.github.io/Cardinal/api/Service"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docusaurus_tag" content="default"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docsearch:docusaurus_tag" content="default"><meta data-rh="true" property="og:title" content="Service | Cardinal"><meta data-rh="true" name="description" content="All functions are optional for you to add, and will be called if they exist.
+
+Example Service
+```lua
+local ReplicatedStorage = game:GetService(&quot;ReplicatedStorage&quot;)
+local Packages = ReplicatedStorage:WaitForChild(&quot;Packages&quot;)
+local Cardinal = require(Packages:WaitForChild(&quot;Cardinal&quot;))
+
+local Service = {
+	Client = {
+		TestSignal = Cardinal.CreateSignal(),
+		TestProperty = Cardinal.CreateProperty(0),
+	},
+}
+
+function Service:OnInit()
+	print(&quot;Service Initialized&quot;)
+end
+
+function Service:OnStart()
+	print(&quot;Service Started&quot;)
+end
+
+function Service:OnPlayerAdded(Player)
+	print(&quot;Player Added: &quot;, Player)
+end
+
+function Service:OnCharacterAdded(Character, Player)
+	print(&quot;Character Added: &quot;, Character, Player)
+end
+
+function Service:OnHeartbeat(DeltaTime)
+	print(&quot;Heartbeats stepping...&quot;)
+end
+
+return Service
+```"><meta data-rh="true" property="og:description" content="All functions are optional for you to add, and will be called if they exist.
+
+Example Service
+```lua
+local ReplicatedStorage = game:GetService(&quot;ReplicatedStorage&quot;)
+local Packages = ReplicatedStorage:WaitForChild(&quot;Packages&quot;)
+local Cardinal = require(Packages:WaitForChild(&quot;Cardinal&quot;))
+
+local Service = {
+	Client = {
+		TestSignal = Cardinal.CreateSignal(),
+		TestProperty = Cardinal.CreateProperty(0),
+	},
+}
+
+function Service:OnInit()
+	print(&quot;Service Initialized&quot;)
+end
+
+function Service:OnStart()
+	print(&quot;Service Started&quot;)
+end
+
+function Service:OnPlayerAdded(Player)
+	print(&quot;Player Added: &quot;, Player)
+end
+
+function Service:OnCharacterAdded(Character, Player)
+	print(&quot;Character Added: &quot;, Character, Player)
+end
+
+function Service:OnHeartbeat(DeltaTime)
+	print(&quot;Heartbeats stepping...&quot;)
+end
+
+return Service
+```"><link data-rh="true" rel="canonical" href="https://RemnantsOfSiren.github.io/Cardinal/api/Service"><link data-rh="true" rel="alternate" href="https://RemnantsOfSiren.github.io/Cardinal/api/Service" hreflang="en"><link data-rh="true" rel="alternate" href="https://RemnantsOfSiren.github.io/Cardinal/api/Service" hreflang="x-default"><link rel="stylesheet" href="/Cardinal/assets/css/styles.19a5646f.css">
+<link rel="preload" href="/Cardinal/assets/js/runtime~main.b2401a8c.js" as="script">
+<link rel="preload" href="/Cardinal/assets/js/main.495d8519.js" as="script">
+</head>
+<body class="navigation-with-keyboard">
+<script>!function(){function e(e){document.documentElement.setAttribute("data-theme",e)}var t=function(){var e=null;try{e=localStorage.getItem("theme")}catch(e){}return e}();null!==t?e(t):window.matchMedia("(prefers-color-scheme: dark)").matches?e("dark"):(window.matchMedia("(prefers-color-scheme: light)").matches,e("light"))}()</script><div id="__docusaurus">
+<div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="navbar navbar--fixed-top"><div class="navbar__inner"><div class="navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/Cardinal/"><b class="navbar__title text--truncate">Cardinal</b></a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/Cardinal/api/">API</a></div><div class="navbar__items navbar__items--right"><a href="https://github.com/RemnantsOfSiren/Cardinal" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">GitHub<svg width="13.5" height="13.5" aria-hidden="true" viewBox="0 0 24 24" class="iconExternalLink_nPIU"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"></path></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type="button" disabled="" title="Switch between dark and light mode (currently light mode)" aria-label="Switch between dark and light mode (currently light mode)" aria-live="polite"><svg viewBox="0 0 24 24" width="24" height="24" class="lightToggleIcon_pyhR"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" class="darkToggleIcon_wfgR"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"></path></svg></button></div><div class="searchBox_ZlJk"><div class="navbar__search"><span aria-label="expand searchbar" role="button" class="search-icon" tabindex="0"></span><input type="search" id="search_input_react" placeholder="Loading..." aria-label="Search" class="navbar__search-input search-bar" disabled=""></div></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="docusaurus_skipToContent_fallback" class="main-wrapper mainWrapper_z2l0 docPageContainer_wNNk"><div class="docPage_Dpn1"><div class="docSidebarContainer_o_re"><div class="sidebar_njMd"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/Cardinal/api/Cardinal">​Cardinal</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/Cardinal/api/Controller">​Controller</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/Cardinal/api/Net">​Net</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/Cardinal/api/RemoteProperty">​Remote​Property</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/Cardinal/api/RemoteSignal">​Remote​Signal</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" href="/Cardinal/api/Service">​Service</a></li></ul></nav></div></div><main class="docMainContainer_HJE1"><div class="container padding-vert--lg"><div class="row"><div class="col docItemCol_MU3C"><div class="docItemContainer_Wv98"><article><div class="member_J0w1 markdown"><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_oUs_"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><header><h1 class="docTitle_mZRt" style="text-decoration:none"><span style="display:inline-block">Service</span></h1><div class="luaClassTags_EipM"><span class="badge_Ba2I" style="color:#00CC67"><span class="badgeTooltip_cWXP">This item only works when running on the server.</span><span class="badgeToolTipTail_H9D_"><svg fill="#00CC67" xmlns="http://www.w3.org/2000/svg" version="1.1" x="0px" y="0px" viewBox="0 0 90 90" role="img" aria-label="This item only works when running on the server."><polygon points="6.125,72.421 58.544,88.523 58.544,24.372 6.125,8.269 "></polygon><polygon points="79.818,15.77 79.868,15.755 29.615,1.453 10.328,6.318 60.102,21.609 "></polygon><path d="M61.643,78.738l22.232-6.582V17.801l-22.232,6.584V78.738z M73.811,69.257c-1.174,0-2.125-1.19-2.125-2.659  c0-1.468,0.951-2.658,2.125-2.658c1.172,0,2.123,1.19,2.123,2.658C75.934,68.066,74.982,69.257,73.811,69.257z M64.898,32.121  l16.336-4.41v7.117l-16.336,4.409V32.121z M64.898,41.292l16.336-4.41v7.116l-16.336,4.409V41.292z M64.898,50.463l16.336-4.411  v7.116l-16.336,4.411V50.463z"></path><polygon points="83.875,74.893 61.643,81.477 61.643,88.547 83.875,81.963 "></polygon></svg> <!-- -->Server</span></span></div><div>
+<p>All functions are optional for you to add, and will be called if they exist.</p>
+<p>Example Service</p>
+<pre class="language-lua"><code class="language-lua"><span class="token keyword">local</span> ReplicatedStorage <span class="token operator">=</span> game<span class="token punctuation">:</span><span class="token function">GetService</span><span class="token punctuation">(</span><span class="token string">"ReplicatedStorage"</span><span class="token punctuation">)</span>
+<span class="token keyword">local</span> Packages <span class="token operator">=</span> ReplicatedStorage<span class="token punctuation">:</span><span class="token function">WaitForChild</span><span class="token punctuation">(</span><span class="token string">"Packages"</span><span class="token punctuation">)</span>
+<span class="token keyword">local</span> Cardinal <span class="token operator">=</span> <span class="token function">require</span><span class="token punctuation">(</span>Packages<span class="token punctuation">:</span><span class="token function">WaitForChild</span><span class="token punctuation">(</span><span class="token string">"Cardinal"</span><span class="token punctuation">)</span><span class="token punctuation">)</span>
+
+<span class="token keyword">local</span> Service <span class="token operator">=</span> <span class="token punctuation">{</span>
+	Client <span class="token operator">=</span> <span class="token punctuation">{</span>
+		TestSignal <span class="token operator">=</span> Cardinal<span class="token punctuation">.</span><span class="token function">CreateSignal</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+		TestProperty <span class="token operator">=</span> Cardinal<span class="token punctuation">.</span><span class="token function">CreateProperty</span><span class="token punctuation">(</span><span class="token number">0</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+	<span class="token punctuation">}</span><span class="token punctuation">,</span>
+<span class="token punctuation">}</span>
+
+<span class="token keyword">function</span> Service<span class="token punctuation">:</span><span class="token function">OnInit</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+	<span class="token function">print</span><span class="token punctuation">(</span><span class="token string">"Service Initialized"</span><span class="token punctuation">)</span>
+<span class="token keyword">end</span>
+
+<span class="token keyword">function</span> Service<span class="token punctuation">:</span><span class="token function">OnStart</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+	<span class="token function">print</span><span class="token punctuation">(</span><span class="token string">"Service Started"</span><span class="token punctuation">)</span>
+<span class="token keyword">end</span>
+
+<span class="token keyword">function</span> Service<span class="token punctuation">:</span><span class="token function">OnPlayerAdded</span><span class="token punctuation">(</span>Player<span class="token punctuation">)</span>
+	<span class="token function">print</span><span class="token punctuation">(</span><span class="token string">"Player Added: "</span><span class="token punctuation">,</span> Player<span class="token punctuation">)</span>
+<span class="token keyword">end</span>
+
+<span class="token keyword">function</span> Service<span class="token punctuation">:</span><span class="token function">OnCharacterAdded</span><span class="token punctuation">(</span>Character<span class="token punctuation">,</span> Player<span class="token punctuation">)</span>
+	<span class="token function">print</span><span class="token punctuation">(</span><span class="token string">"Character Added: "</span><span class="token punctuation">,</span> Character<span class="token punctuation">,</span> Player<span class="token punctuation">)</span>
+<span class="token keyword">end</span>
+
+<span class="token keyword">function</span> Service<span class="token punctuation">:</span><span class="token function">OnHeartbeat</span><span class="token punctuation">(</span>DeltaTime<span class="token punctuation">)</span>
+	<span class="token function">print</span><span class="token punctuation">(</span><span class="token string">"Heartbeats stepping..."</span><span class="token punctuation">)</span>
+<span class="token keyword">end</span>
+
+<span class="token keyword">return</span> Service
+</code></pre>
+</div></header><h2 class="anchor anchorWithStickyNavbar_LWe7" id="properties">Properties<a href="#properties" class="hash-link" aria-label="Direct link to Properties" title="Direct link to Properties">​</a></h2><div class="divider_rE5g"></div><h3 class="anchor anchorWithStickyNavbar_LWe7" id="Client?"><code style="text-decoration:none">Client?</code><a href="#Client?" class="hash-link" aria-label="Direct link to Client?" title="Direct link to Client?">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/RemnantsOfSiren/Cardinal/blob/master/lib/init.luau#L18"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Service<!-- -->.<!-- -->Client?<!-- -->:<!-- --> </code> <code class="purple_ieR2">{</code><span><code>[</code><code class="blue_P4bS">string</code><code>]</code></span><code>: </code><code class="green_DgR4">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS">self</code><code class="green_DgR4">,</code></div><div class="inset_uKQm"><code>Player<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/Player" target="_blank" rel="noopener noreferrer">Player<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code class="green_DgR4">,</code></div><div class="inset_uKQm"><code class="blue_P4bS">...</code></div><code class="green_DgR4">)</code><code class="green_DgR4"> → </code><code class="blue_P4bS">nil</code><code class="op_lSLc"> | </code><code class="green_DgR4">(</code><code class="green_DgR4">)</code><code class="green_DgR4"> → </code><code class="blue_P4bS">nil</code><code class="purple_ieR2">}</code><code class="op_lSLc"> | </code><code class="blue_P4bS">nil</code></div><div></div><h2 class="anchor anchorWithStickyNavbar_LWe7" id="functions">Functions<a href="#functions" class="hash-link" aria-label="Direct link to Functions" title="Direct link to Functions">​</a></h2><div class="divider_rE5g"></div><h3 class="anchor anchorWithStickyNavbar_LWe7" id="OnInit?"><code style="text-decoration:none">OnInit?</code><a href="#OnInit?" class="hash-link" aria-label="Direct link to OnInit?" title="Direct link to OnInit?">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/RemnantsOfSiren/Cardinal/blob/master/lib/init.luau#L23"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Service<!-- -->:</code><code class="green_DgR4">OnInit?</code><code>(</code><code>) → </code><code>(</code><code>)</code></div><div>
+<p>Fires when the Service is initialized.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorWithStickyNavbar_LWe7" id="OnStart?"><code style="text-decoration:none">OnStart?</code><a href="#OnStart?" class="hash-link" aria-label="Direct link to OnStart?" title="Direct link to OnStart?">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/RemnantsOfSiren/Cardinal/blob/master/lib/init.luau#L28"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Service<!-- -->:</code><code class="green_DgR4">OnStart?</code><code>(</code><code>) → </code><code>(</code><code>)</code></div><div>
+<p>Fires when the Service is Started.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorWithStickyNavbar_LWe7" id="OnPlayerAdded?"><code style="text-decoration:none">OnPlayerAdded?</code><a href="#OnPlayerAdded?" class="hash-link" aria-label="Direct link to OnPlayerAdded?" title="Direct link to OnPlayerAdded?">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/RemnantsOfSiren/Cardinal/blob/master/lib/init.luau#L33"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Service<!-- -->:</code><code class="green_DgR4">OnPlayerAdded?</code><code>(</code><code>) → </code><code>(</code><code>)</code></div><div>
+<p>Fires when a Player is added.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorWithStickyNavbar_LWe7" id="OnPlayerRemoving?"><code style="text-decoration:none">OnPlayerRemoving?</code><a href="#OnPlayerRemoving?" class="hash-link" aria-label="Direct link to OnPlayerRemoving?" title="Direct link to OnPlayerRemoving?">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/RemnantsOfSiren/Cardinal/blob/master/lib/init.luau#L38"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Service<!-- -->:</code><code class="green_DgR4">OnPlayerRemoving?</code><code>(</code><code>) → </code><code>(</code><code>)</code></div><div>
+<p>Fires when a Player is removed.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorWithStickyNavbar_LWe7" id="OnCharacterAdded?"><code style="text-decoration:none">OnCharacterAdded?</code><a href="#OnCharacterAdded?" class="hash-link" aria-label="Direct link to OnCharacterAdded?" title="Direct link to OnCharacterAdded?">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/RemnantsOfSiren/Cardinal/blob/master/lib/init.luau#L45"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Service<!-- -->:</code><code class="green_DgR4">OnCharacterAdded?</code><code>(</code><div class="inset_uKQm"><div><code>Character<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Instance" target="_blank" rel="noopener noreferrer">Instance<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code>,</code></div><div><code>Player<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/Player" target="_blank" rel="noopener noreferrer">Player<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code></div></div><code>) → </code><code>(</code><code>)</code></div><div>
+<p>Fires when a Character is added.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorWithStickyNavbar_LWe7" id="OnStepped?"><code style="text-decoration:none">OnStepped?</code><a href="#OnStepped?" class="hash-link" aria-label="Direct link to OnStepped?" title="Direct link to OnStepped?">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/RemnantsOfSiren/Cardinal/blob/master/lib/init.luau#L52"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Service<!-- -->:</code><code class="green_DgR4">OnStepped?</code><code>(</code><div class="inset_uKQm"><div><code>ElapsedTime<!-- -->: </code><code class="blue_P4bS">number</code><code>,</code></div><div><code>DeltaTime<!-- -->: </code><code class="blue_P4bS">number</code></div></div><code>) → </code><code>(</code><code>)</code></div><div>
+<p>Fires when the Stepped event is fired.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorWithStickyNavbar_LWe7" id="OnHeartbeat?"><code style="text-decoration:none">OnHeartbeat?</code><a href="#OnHeartbeat?" class="hash-link" aria-label="Direct link to OnHeartbeat?" title="Direct link to OnHeartbeat?">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/RemnantsOfSiren/Cardinal/blob/master/lib/init.luau#L58"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Service<!-- -->:</code><code class="green_DgR4">OnHeartbeat?</code><code>(</code><code>DeltaTime<!-- -->: </code><code class="blue_P4bS">number</code><code>) → </code><code>(</code><code>)</code></div><div>
+<p>Fires when the Heartbeat event is fired.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorWithStickyNavbar_LWe7" id="OnPreAnimation?"><code style="text-decoration:none">OnPreAnimation?</code><a href="#OnPreAnimation?" class="hash-link" aria-label="Direct link to OnPreAnimation?" title="Direct link to OnPreAnimation?">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/RemnantsOfSiren/Cardinal/blob/master/lib/init.luau#L64"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Service<!-- -->:</code><code class="green_DgR4">OnPreAnimation?</code><code>(</code><code>DeltaTime<!-- -->: </code><code class="blue_P4bS">number</code><code>) → </code><code>(</code><code>)</code></div><div>
+<p>Fires when the PreAnimation event is fired.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorWithStickyNavbar_LWe7" id="OnPreSimulation?"><code style="text-decoration:none">OnPreSimulation?</code><a href="#OnPreSimulation?" class="hash-link" aria-label="Direct link to OnPreSimulation?" title="Direct link to OnPreSimulation?">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/RemnantsOfSiren/Cardinal/blob/master/lib/init.luau#L70"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Service<!-- -->:</code><code class="green_DgR4">OnPreSimulation?</code><code>(</code><code>DeltaTime<!-- -->: </code><code class="blue_P4bS">number</code><code>) → </code><code>(</code><code>)</code></div><div>
+<p>Fires when the PreSimulation event is fired.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorWithStickyNavbar_LWe7" id="OnPostAnimation?"><code style="text-decoration:none">OnPostAnimation?</code><a href="#OnPostAnimation?" class="hash-link" aria-label="Direct link to OnPostAnimation?" title="Direct link to OnPostAnimation?">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/RemnantsOfSiren/Cardinal/blob/master/lib/init.luau#L76"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Service<!-- -->:</code><code class="green_DgR4">OnPostAnimation?</code><code>(</code><code>DeltaTime<!-- -->: </code><code class="blue_P4bS">number</code><code>) → </code><code>(</code><code>)</code></div><div>
+<p>Fires when the PostAnimation event is fired.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorWithStickyNavbar_LWe7" id="OnPostSimulation?"><code style="text-decoration:none">OnPostSimulation?</code><a href="#OnPostSimulation?" class="hash-link" aria-label="Direct link to OnPostSimulation?" title="Direct link to OnPostSimulation?">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/RemnantsOfSiren/Cardinal/blob/master/lib/init.luau#L82"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Service<!-- -->:</code><code class="green_DgR4">OnPostSimulation?</code><code>(</code><code>DeltaTime<!-- -->: </code><code class="blue_P4bS">number</code><code>) → </code><code>(</code><code>)</code></div><div>
+<p>Fires when the PostSimulation event is fired.</p>
+</div></div></article></div><details><summary>Show raw api</summary><pre style="max-width:100%;white-space:pre-wrap">{
+    &quot;functions&quot;: [
+        {
+            &quot;name&quot;: &quot;OnInit?&quot;,
+            &quot;desc&quot;: &quot;Fires when the Service is initialized.&quot;,
+            &quot;params&quot;: [],
+            &quot;returns&quot;: [],
+            &quot;function_type&quot;: &quot;method&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 23,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;OnStart?&quot;,
+            &quot;desc&quot;: &quot;Fires when the Service is Started.&quot;,
+            &quot;params&quot;: [],
+            &quot;returns&quot;: [],
+            &quot;function_type&quot;: &quot;method&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 28,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;OnPlayerAdded?&quot;,
+            &quot;desc&quot;: &quot;Fires when a Player is added.&quot;,
+            &quot;params&quot;: [],
+            &quot;returns&quot;: [],
+            &quot;function_type&quot;: &quot;method&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 33,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;OnPlayerRemoving?&quot;,
+            &quot;desc&quot;: &quot;Fires when a Player is removed.&quot;,
+            &quot;params&quot;: [],
+            &quot;returns&quot;: [],
+            &quot;function_type&quot;: &quot;method&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 38,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;OnCharacterAdded?&quot;,
+            &quot;desc&quot;: &quot;Fires when a Character is added.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;Character&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Instance&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Player&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Player&quot;
+                }
+            ],
+            &quot;returns&quot;: [],
+            &quot;function_type&quot;: &quot;method&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 45,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;OnStepped?&quot;,
+            &quot;desc&quot;: &quot;Fires when the Stepped event is fired.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;ElapsedTime&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;number&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;DeltaTime&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;number&quot;
+                }
+            ],
+            &quot;returns&quot;: [],
+            &quot;function_type&quot;: &quot;method&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 52,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;OnHeartbeat?&quot;,
+            &quot;desc&quot;: &quot;Fires when the Heartbeat event is fired.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;DeltaTime&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;number&quot;
+                }
+            ],
+            &quot;returns&quot;: [],
+            &quot;function_type&quot;: &quot;method&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 58,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;OnPreAnimation?&quot;,
+            &quot;desc&quot;: &quot;Fires when the PreAnimation event is fired.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;DeltaTime&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;number&quot;
+                }
+            ],
+            &quot;returns&quot;: [],
+            &quot;function_type&quot;: &quot;method&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 64,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;OnPreSimulation?&quot;,
+            &quot;desc&quot;: &quot;Fires when the PreSimulation event is fired.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;DeltaTime&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;number&quot;
+                }
+            ],
+            &quot;returns&quot;: [],
+            &quot;function_type&quot;: &quot;method&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 70,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;OnPostAnimation?&quot;,
+            &quot;desc&quot;: &quot;Fires when the PostAnimation event is fired.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;DeltaTime&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;number&quot;
+                }
+            ],
+            &quot;returns&quot;: [],
+            &quot;function_type&quot;: &quot;method&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 76,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;OnPostSimulation?&quot;,
+            &quot;desc&quot;: &quot;Fires when the PostSimulation event is fired.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;DeltaTime&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;number&quot;
+                }
+            ],
+            &quot;returns&quot;: [],
+            &quot;function_type&quot;: &quot;method&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 82,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        }
+    ],
+    &quot;properties&quot;: [
+        {
+            &quot;name&quot;: &quot;Client?&quot;,
+            &quot;desc&quot;: &quot;&quot;,
+            &quot;lua_type&quot;: &quot;{[string]: (self: self, Player: Player, ...) -&gt; nil | () -&gt; nil } | nil&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 18,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        }
+    ],
+    &quot;types&quot;: [],
+    &quot;name&quot;: &quot;Service&quot;,
+    &quot;desc&quot;: &quot;All functions are optional for you to add, and will be called if they exist.\n\nExample Service\n```lua\nlocal ReplicatedStorage = game:GetService(\&quot;ReplicatedStorage\&quot;)\nlocal Packages = ReplicatedStorage:WaitForChild(\&quot;Packages\&quot;)\nlocal Cardinal = require(Packages:WaitForChild(\&quot;Cardinal\&quot;))\n\nlocal Service = {\n\tClient = {\n\t\tTestSignal = Cardinal.CreateSignal(),\n\t\tTestProperty = Cardinal.CreateProperty(0),\n\t},\n}\n\nfunction Service:OnInit()\n\tprint(\&quot;Service Initialized\&quot;)\nend\n\nfunction Service:OnStart()\n\tprint(\&quot;Service Started\&quot;)\nend\n\nfunction Service:OnPlayerAdded(Player)\n\tprint(\&quot;Player Added: \&quot;, Player)\nend\n\nfunction Service:OnCharacterAdded(Character, Player)\n\tprint(\&quot;Character Added: \&quot;, Character, Player)\nend\n\nfunction Service:OnHeartbeat(DeltaTime)\n\tprint(\&quot;Heartbeats stepping...\&quot;)\nend\n\nreturn Service\n```&quot;,
+    &quot;realm&quot;: [
+        &quot;Server&quot;
+    ],
+    &quot;source&quot;: {
+        &quot;line&quot;: 125,
+        &quot;path&quot;: &quot;lib/init.luau&quot;
+    }
+}</pre></details></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#types" class="table-of-contents__link toc-highlight">Types</a></li><li><a href="#properties" class="table-of-contents__link toc-highlight">Properties</a><ul><li><a href="#Client?" class="table-of-contents__link toc-highlight">Client?</a></li></ul></li><li><a href="#functions" class="table-of-contents__link toc-highlight">Functions</a><ul><li><a href="#OnCharacterAdded?" class="table-of-contents__link toc-highlight">:OnCharacterAdded?</a></li><li><a href="#OnHeartbeat?" class="table-of-contents__link toc-highlight">:OnHeartbeat?</a></li><li><a href="#OnInit?" class="table-of-contents__link toc-highlight">:OnInit?</a></li><li><a href="#OnPlayerAdded?" class="table-of-contents__link toc-highlight">:OnPlayerAdded?</a></li><li><a href="#OnPlayerRemoving?" class="table-of-contents__link toc-highlight">:OnPlayerRemoving?</a></li><li><a href="#OnPostAnimation?" class="table-of-contents__link toc-highlight">:OnPostAnimation?</a></li><li><a href="#OnPostSimulation?" class="table-of-contents__link toc-highlight">:OnPostSimulation?</a></li><li><a href="#OnPreAnimation?" class="table-of-contents__link toc-highlight">:OnPreAnimation?</a></li><li><a href="#OnPreSimulation?" class="table-of-contents__link toc-highlight">:OnPreSimulation?</a></li><li><a href="#OnStart?" class="table-of-contents__link toc-highlight">:OnStart?</a></li><li><a href="#OnStepped?" class="table-of-contents__link toc-highlight">:OnStepped?</a></li></ul></li></ul></div></div></div></div></main></div></div><footer class="footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2024 RemnantsOfSiren. Built with Moonwave and Docusaurus.</div></div></div></footer></div>
+<script src="/Cardinal/assets/js/runtime~main.b2401a8c.js"></script>
+<script src="/Cardinal/assets/js/main.495d8519.js"></script>
+</body>
+</html>
