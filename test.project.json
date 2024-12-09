@@ -1,0 +1,29 @@
+{
+  "name": "cardinal-test",
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "Packages": {
+        "$path": "Packages",
+        "Replicator": {
+          "$path": "src"
+        }
+      }
+    },
+
+    "ServerScriptService": {
+      "Server": {
+        "$path": "test/server"
+      }
+    },
+
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "Client": {
+          "$path": "test/client"
+        }
+      }
+    }
+  }
+}
