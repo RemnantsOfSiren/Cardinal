@@ -158,7 +158,32 @@ end
 
 --[=[
 	@class Net
-	A Module that allows for easy communication between the Server and Client.
+
+	A Module that allows for easier communication between the Server and Client.
+
+	Cardinal internally uses this module to handle the server-client communication.
+
+	```lua
+	local Service = {
+		Client = {},
+	} -- will tell Cardinal that this is a service needs to create a new Net, allowing for functions in this table to be what we call "client-exposed" functions.
+	
+	function Service.Client:Hello(Player) -- this function will be exposed to the client
+		print("Hello", Player)
+	end
+
+	-- in the client
+	local Cardinal = require(Path.to.Cardinal)
+	
+	local Service
+
+	local Controller = {}
+
+	function Controller:OnInit()
+		Service = Cardinal.GetService("Service") -- this is the best practice in requiring a service on the client, OnInit will run after the server is fully ready so this ensures that the service is ready to be used.
+		Service:Hello() -- this will call the Hello function on the server
+	end
+	```
 ]=]
 return table.freeze({
 	CreateSignal = RemoteSignal.new,

@@ -243,12 +243,14 @@
 	```
 ]=]
 
+type Callback = (Instance) -> () -> nil
+
 local RunService = game:GetService("RunService")
 local PlayerService = game:GetService("Players")
 
 local Promise = require(script.Parent.Promise) :: { [any]: any }
 
-local Net = require(script.Net)
+local Net = require(script.Net) :: any
 
 type Packet = {
 	Args: { [any]: any },
@@ -317,9 +319,15 @@ local CachedNets = if not IsServer then {} else nil
 
 local function Load(Module: ModuleScript)
 	local Name = Module.Name
-	Module = require(Module) :: any
-	if typeof(Module) == "table" then
+	
+	local Success, Error = pcall(function()
+		Module = require(Module) :: any
+	end)
+
+	if Success and typeof(Module) == "table" then
 		Loaded[Name] = Module
+	elseif not Success then
+		error(`@Cardinal - Error Loading {Name}: ` .. Error)
 	end
 end
 
@@ -367,24 +375,28 @@ export type Controller = {
 local Signal = newproxy(false)
 local Property = newproxy(false)
 
+
 --[=[
 	@function Load
 	@within Cardinal
 	@param Parent: Instance
-	@param DeeporPredicate: (ModuleScript) -> boolean | boolean?, 
-	@param Exclusions: { string }?
+	@param LoadOptions: { Deep: boolean?, Predicate: ((ModuleScript) -> boolean)?, Exclusions: { string }? }?
 	@return Promise<string>
 	Loads a ModuleScript into the Loader. 
 
-	DeepOrPredicate can be a function that returns a boolean, or a boolean, using the boolean will determine if the function should be deep or and the function will be used to determine if the ModuleScript should be loaded.
+	LoadOptions:
 
+	Deep is an optional boolean that will determine if the Loader should load all ModuleScripts in the Parent's descendants.
+	
+	Predicate is an optional function that will be used to determine if the ModuleScript should be loaded.
+	
 	Exclusions is an optional table of strings that will be used to exclude certain ModuleScripts from being loaded.
 ]=]
 
 --[=[
 	@function Start
 	@within Cardinal
-	@return Promise<void>
+	@return Promise<string>
 	Starts the Loader, initializing and starting all services/controllers.
 ]=]
 
@@ -420,14 +432,30 @@ local Property = newproxy(false)
 ]=]
 
 --[=[
+	@prop Icon Icon
+	@within Cardinal
+	@client
+
+	This is an expose for TopbarPlus (https://devforum.roblox.com/t/1017485)
+
+	it returns the Icon module, due to the Wally for topbarplus being broken, I've just ported it directly into Cardinal.
+]=]
+
+--[=[
 	@prop Net Net
 	@within Cardinal
 ]=]
 
 --[=[
 	@class Cardinal	
-	The main driver functions for cardinal
+	The main driver functions for Cardinal
 ]=]
+
+export type LoadOptions = {
+	Deep: boolean?,
+	Predicate: ((ModuleScript) -> boolean)?,
+	Exclusions: { string }?
+}
 
 return table.freeze({
 	Net = Net,
@@ -455,26 +483,34 @@ return table.freeze({
 		end
 	end,
 
-	Load = function(Parent: Instance, DeepOrPredicate: ((ModuleScript) -> boolean) | boolean?, Exclusions: { string }?)
+	Load = function(Parent: Instance, LoadOptions: LoadOptions?)
 		if Started then
 			return Promise.reject("Can't load Modules once the Loader is already started.")
 		end
 
-		if not DeepOrPredicate then
-			DeepOrPredicate = false
+		local Deep = false
+		local Predicate = if LoadOptions and LoadOptions.Predicate then LoadOptions.Predicate else nil
+		local Exclusions = if LoadOptions and LoadOptions.Exclusions then LoadOptions.Exclusions else nil
+
+		if LoadOptions and not LoadOptions.Deep then
+			Deep = false
 		end
 
-		local Modules = {} :: { Instance }
+		local Modules = {} :: { ModuleScript }
 
-		if typeof(DeepOrPredicate) == "function" then
-			for _, ModuleScript in Parent:GetDescendants() do
-				if ModuleScript:IsA("ModuleScript") and DeepOrPredicate(ModuleScript) then
-					table.insert(Modules, ModuleScript)
+		for _, Object in pairs(if Deep then Parent:GetDescendants() else Parent:GetChildren()) do
+			if Object:IsA("ModuleScript") then
+				table.insert(Modules, Object)
+			end
+		end
+
+		if Predicate then
+			for I = #Modules, 1, -1 do
+				local ModuleScript = Modules[I]
+				if not Predicate(ModuleScript) then
+					table.remove(Modules, I)
 				end
 			end
-		elseif typeof(DeepOrPredicate) == "boolean" then
-			Modules = if DeepOrPredicate then 
-				Parent:GetDescendants() else Parent:GetChildren()
 		end
 
 		for _, Object in pairs(Modules) do
@@ -487,7 +523,7 @@ return table.freeze({
 			end
 		end
 
-		return Promise.resolve("Completed")
+		return Promise.resolve("@Cardinal - Loading Completed")
 	end,
 
     GetService = function(Name: string)
@@ -603,10 +639,22 @@ return table.freeze({
 			local Init = Module.OnInit or Module.Init
 
 			if Init then
+				Module.__Initialized = false
+				task.spawn(function()
+					local T = tick()
+
+					repeat
+						task.wait()
+					until tick() - T > 10 or Module.__Initialized
+					
+					if not Module.__Initialized then
+						error(`@Cardinal - module: { Name } took too long to initialize.`)
+					end
+				end)
+
 				task.spawn(function() 
 					debug.profilebegin(`Initializing {Name}`)
 					table.insert(Temp, Promise.try(function()
-						Module.__Initialized = false
 						Init(Module) 
 						Module.__Initialized = true
 					end))
@@ -623,10 +671,22 @@ return table.freeze({
 					local Start = Module.OnStart or Module.Start
 
 					if Start then
+						Module.__Started = false
+						task.spawn(function()
+							local T = tick()
+
+							repeat
+								task.wait()
+							until tick() - T > 10 or Module.__Started
+							
+							if not Module.__Started then
+								error(`@Cardinal - module: { Name } took too long to start.`)
+							end
+						end)
+						
 						task.spawn(function() 
 							debug.profilebegin(`Starting {Name}`)
 							table.insert(Temp, Promise.try(function()
-								Module.__Started = false
 								Start(Module) 
 								Module.__Started = true
 							end))
@@ -800,19 +860,24 @@ return table.freeze({
 				end)
 
 				if RunService:IsServer() then
-					game:BindToClose(function()
+					local Success, Error = pcall(game.BindToClose, game, function() 
 						task.cancel(Thread)
 
 						for _, Player in pairs(PlayerService:GetPlayers()) do
 							task.spawn(PlayerRemoving, Player)
 						end
 					end)
+
+					if not Success then 
+						error(`@Cardinal - Error binding to close: ` .. Error)
+					end
 			
 					script:SetAttribute("ServerReady", true)
 				end
 
 				Started = true
 				script:SetAttribute("Started", true)
+				return Promise.resolve("@Cardinal - Started")
 			end)
 	end,
 })

@@ -6,7 +6,7 @@
     "ReplicatedStorage": {
       "Packages": {
         "$path": "Packages",
-        "Replicator": {
+        "Cardinal": {
           "$path": "src"
         }
       }

@@ -8,6 +8,10 @@ local CharacterService = {
 	},
 }
 
+function CharacterService:OnStart()
+	task.wait(11)
+end
+
 function CharacterService:OnPlayerAdded(Player)
 	-- task.delay(10, function()
 	-- 	Player:LoadCharacter()
