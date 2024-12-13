@@ -257,7 +257,7 @@ type Packet = {
 	Sent: boolean,
 }
 
-local EventLog: { [string]: { Packet }} = {
+local EventLog: { [string]: { Packet } } = {
 	["PlayerAdded"] = {},
 	["CharacterAdded"] = {},
 	["PlayerRemoving"] = {},
@@ -265,7 +265,7 @@ local EventLog: { [string]: { Packet }} = {
 
 local function CreatePacket(...): Packet
 	return {
-		Args = {...},
+		Args = { ... },
 		Sent = false,
 	}
 end
@@ -319,7 +319,7 @@ local CachedNets = if not IsServer then {} else nil
 
 local function Load(Module: ModuleScript)
 	local Name = Module.Name
-	
+
 	local Success, Error = pcall(function()
 		Module = require(Module) :: any
 	end)
@@ -331,7 +331,7 @@ local function Load(Module: ModuleScript)
 	end
 end
 
-local function IsAnExclusion(Exclusions: {string}, Name: string): boolean
+local function IsAnExclusion(Exclusions: { string }, Name: string): boolean
 	for _, Exclusion in pairs(Exclusions) do
 		if Name:lower():find(Exclusion:lower()) then
 			return true
@@ -374,7 +374,6 @@ export type Controller = {
 
 local Signal = newproxy(false)
 local Property = newproxy(false)
-
 
 --[=[
 	@function Load
@@ -454,20 +453,20 @@ local Property = newproxy(false)
 export type LoadOptions = {
 	Deep: boolean?,
 	Predicate: ((ModuleScript) -> boolean)?,
-	Exclusions: { string }?
+	Exclusions: { string }?,
 }
 
 return table.freeze({
 	Net = Net,
 	Icon = if not IsServer then require(script.Icon) else nil,
 	Player = if not IsServer then PlayerService.LocalPlayer else nil,
-	
+
 	CreateSignal = function()
 		return Signal
 	end,
 
 	CreateProperty = function(InitialValue: any)
-		return { Property, InitialValue } 
+		return { Property, InitialValue }
 	end,
 
 	OnStart = function()
@@ -518,7 +517,7 @@ return table.freeze({
 				if Exclusions and IsAnExclusion(Exclusions, Object.Name) then
 					continue
 				end
-				
+
 				Load(Object)
 			end
 		end
@@ -526,29 +525,29 @@ return table.freeze({
 		return Promise.resolve("@Cardinal - Loading Completed")
 	end,
 
-    GetService = function(Name: string)
-        if IsServer then
-            return warn("GetService can only be called on the Client.")
-        end
-        
-        if CachedNets then
-            local Found = CachedNets[Name]
+	GetService = function(Name: string)
+		if IsServer then
+			return warn("GetService can only be called on the Client.")
+		end
 
-            if Found then
-                return Found
-            else
+		if CachedNets then
+			local Found = CachedNets[Name]
+
+			if Found then
+				return Found
+			else
 				local NetworkEvents = script:WaitForChild("NetworkEvents") :: StringValue
 				local Nets = NetworkEvents.Value:split(":")
-				
+
 				if table.find(Nets, Name) then
 					local _Net = {}
-					
+
 					local Network = Net.new(Name) :: { CreateEvent: (any, string) -> { [any]: any } }
 
 					local GetEvents = Network:CreateEvent("GetEvents")
 					local GetProperties = Network:CreateEvent("GetProperties")
 					local GetSignals = Network:CreateEvent("GetSignals")
-						
+
 					for _, Event in GetEvents:Invoke() do
 						local _Event = Network:CreateEvent(Event)
 
@@ -570,10 +569,9 @@ return table.freeze({
 					CachedNets[Name] = _Net
 					return _Net
 				end
-            end 
-        end
-    end,
-
+			end
+		end
+	end,
 
 	Start = function()
 		if Started then
@@ -586,14 +584,14 @@ return table.freeze({
 		for Name, Module in Loaded do
 			if Module.Client then
 				Module.Client.Server = Module
-				
+
 				local _Net = Net.new(Module.Name or Name) :: { CreateEvent: (any, string) -> { [any]: any } }
 				Module.Net = _Net
 
 				local ClientEvents = {}
 				local ClientSignals = {}
 				local ClientProperties = {}
-				
+
 				local GetEvents = _Net:CreateEvent("GetEvents")
 
 				GetEvents:SetCallback(function()
@@ -616,7 +614,7 @@ return table.freeze({
 					if typeof(Callback) == "function" then
 						local _Event = _Net:CreateEvent(Event)
 
-						_Event:SetCallback(function(Player, ...) 
+						_Event:SetCallback(function(Player, ...)
 							return Callback(Module.Client, Player, ...)
 						end)
 
@@ -624,7 +622,11 @@ return table.freeze({
 					elseif typeof(Callback) == "userdata" and Callback == Signal then
 						Module.Client[Event] = Net.CreateSignal(_Net, Event)
 						table.insert(ClientSignals, Event)
-					elseif typeof(Callback) == "table" and typeof(Callback[1]) == "userdata" and Callback[1] == Property then
+					elseif
+						typeof(Callback) == "table"
+						and typeof(Callback[1]) == "userdata"
+						and Callback[1] == Property
+					then
 						local InitialValue = Callback[2]
 						Module.Client[Event] = Net.CreateProperty(_Net, Event, InitialValue)
 						table.insert(ClientProperties, { Event, InitialValue })
@@ -646,18 +648,21 @@ return table.freeze({
 					repeat
 						task.wait()
 					until tick() - T > 10 or Module.__Initialized
-					
+
 					if not Module.__Initialized then
-						error(`@Cardinal - module: { Name } took too long to initialize.`)
+						error(`@Cardinal - module: {Name} took too long to initialize.`)
 					end
 				end)
 
-				task.spawn(function() 
+				task.spawn(function()
 					debug.profilebegin(`Initializing {Name}`)
-					table.insert(Temp, Promise.try(function()
-						Init(Module) 
-						Module.__Initialized = true
-					end))
+					table.insert(
+						Temp,
+						Promise.try(function()
+							Init(Module)
+							Module.__Initialized = true
+						end)
+					)
 					debug.profileend()
 				end)
 			end
@@ -678,18 +683,21 @@ return table.freeze({
 							repeat
 								task.wait()
 							until tick() - T > 10 or Module.__Started
-							
+
 							if not Module.__Started then
-								error(`@Cardinal - module: { Name } took too long to start.`)
+								error(`@Cardinal - module: {Name} took too long to start.`)
 							end
 						end)
-						
-						task.spawn(function() 
+
+						task.spawn(function()
 							debug.profilebegin(`Starting {Name}`)
-							table.insert(Temp, Promise.try(function()
-								Start(Module) 
-								Module.__Started = true
-							end))
+							table.insert(
+								Temp,
+								Promise.try(function()
+									Start(Module)
+									Module.__Started = true
+								end)
+							)
 							debug.profileend()
 						end)
 					end
@@ -752,7 +760,7 @@ return table.freeze({
 						end
 					end
 				end
-				
+
 				local Net = Instance.new("StringValue")
 				Net.Name = "NetworkEvents"
 				Net.Value = table.concat(Nets, ":")
@@ -784,9 +792,11 @@ return table.freeze({
 							task.wait()
 						end
 					end
-						
+
 					if tick() - Start >= 10 then
-						warn("Character's PrimaryPart took too long to be parented. Some code may not function as expected.")
+						warn(
+							"Character's PrimaryPart took too long to be parented. Some code may not function as expected."
+						)
 					end
 
 					if #Events.PlayerService.CharacterAdded > 0 then
@@ -832,9 +842,9 @@ return table.freeze({
 					end
 				end
 
-				local Thread = task.spawn(function() 
+				local Thread = task.spawn(function()
 					while true do
-						for Event: string, Log: { Packet } in EventLog do							
+						for Event: string, Log: { Packet } in EventLog do
 							for I = #Log, 1, -1 do
 								local Packet: Packet = Log[I]
 								if not Packet then
@@ -860,7 +870,7 @@ return table.freeze({
 				end)
 
 				if RunService:IsServer() then
-					local Success, Error = pcall(game.BindToClose, game, function() 
+					local Success, Error = pcall(game.BindToClose, game, function()
 						task.cancel(Thread)
 
 						for _, Player in pairs(PlayerService:GetPlayers()) do
@@ -868,10 +878,10 @@ return table.freeze({
 						end
 					end)
 
-					if not Success then 
+					if not Success then
 						error(`@Cardinal - Error binding to close: ` .. Error)
 					end
-			
+
 					script:SetAttribute("ServerReady", true)
 				end
 

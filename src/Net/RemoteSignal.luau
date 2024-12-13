@@ -65,41 +65,41 @@ local RemoteSignal = {}
 RemoteSignal.__index = RemoteSignal
 
 function RemoteSignal.new(Net: { CreateEvent: (self: unknown, string) -> unknown }, Name: string)
-    local self = setmetatable({}, RemoteSignal)
+	local self = setmetatable({}, RemoteSignal)
 
-    self.Event = Net:CreateEvent(Name)
-    
-    return self
+	self.Event = Net:CreateEvent(Name)
+
+	return self
 end
 
 if RunService:IsServer() then
-    function RemoteSignal:Fire(Players: { Player } | Player, ...: any)
-        self.Event:Fire(Players, ...)
-    end
-    
-    function RemoteSignal:FireAll(...)
-        self.Event:FireAll(...)
-    end
+	function RemoteSignal:Fire(Players: { Player } | Player, ...: any)
+		self.Event:Fire(Players, ...)
+	end
 
-    function RemoteSignal:FireAllExcept(Exempt: { Player } | Player, ...)
-        self.Event:FireAllExcept(Exempt, ...)
-    end
+	function RemoteSignal:FireAll(...)
+		self.Event:FireAll(...)
+	end
 
-    function RemoteSignal:Connect(Callback: (Player: Player, ...any) -> ())
-        return self.Event:Connect(Callback)
-    end
+	function RemoteSignal:FireAllExcept(Exempt: { Player } | Player, ...)
+		self.Event:FireAllExcept(Exempt, ...)
+	end
+
+	function RemoteSignal:Connect(Callback: (Player: Player, ...any) -> ())
+		return self.Event:Connect(Callback)
+	end
 else
-    function RemoteSignal:Fire(...)
-        self.Event:Fire(...)
-    end
+	function RemoteSignal:Fire(...)
+		self.Event:Fire(...)
+	end
 
-    function RemoteSignal:Connect(Callback: (...any) -> ())
-        return self.Event:Connect(Callback)
-    end
+	function RemoteSignal:Connect(Callback: (...any) -> ())
+		return self.Event:Connect(Callback)
+	end
 end
 
 function RemoteSignal:Destroy()
-    table.clear(self)
+	table.clear(self)
 end
 
 return RemoteSignal
