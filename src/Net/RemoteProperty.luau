@@ -95,6 +95,7 @@ function RemoteProperty.new(
 	self.Changed = Signal.new()
 
 	if RunService:IsServer() then
+		self._ClientsReady = {}
 		self.Values = {}
 		self._InitialValue = InitialValue
 
@@ -113,8 +114,13 @@ function RemoteProperty.new(
 		self.Cleaner:Connect(PlayerService.PlayerRemoving, function(Player: Player)
 			self.Values[Player] = nil
 		end)
+
+		self.Event:Connect(function(Player: Player)
+			self._ClientsReady[Player] = true
+		end)
 	else
 		self.Value = InitialValue
+		self._Ready = false
 
 		self.Cleaner:Add(
 			self.Event:Connect(function(Value: any)
@@ -139,9 +145,16 @@ if RunService:IsServer() then
 		end
 
 		for _, Player in Players :: { Player } do
-			self.Values[Player] = if typeof(Value) == "table" then DeepCopy(Value :: { any }) else Value
-			self.Event:Fire(Player, self.Values[Player])
-			self.Changed:Fire(Player, self.Values[Player])
+			task.spawn(function()
+				if not self._ClientsReady[Player] then
+					repeat
+						task.wait()
+					until self._ClientsReady[Player]
+				end
+				self.Values[Player] = if typeof(Value) == "table" then DeepCopy(Value :: { any }) else Value
+				self.Event:Fire(Player, self.Values[Player])
+				self.Changed:Fire(Player, self.Values[Player])
+			end)
 		end
 	end
 
@@ -169,9 +182,18 @@ else
 		return self.Value
 	end
 
+	function RemoteProperty:Connect(Callback: (any) -> ())
+		local Connection = self.Changed:Connect(Callback)
+		if not self._Ready then
+			self._Ready = true
+			self.Event:Fire()
+		end
+		return Connection
+	end
+
 	function RemoteProperty:Observe(Callback: (any) -> ())
 		task.spawn(Callback, self.Value)
-		return self.Changed:Connect(Callback)
+		return self:Connect(Callback)
 	end
 end
 

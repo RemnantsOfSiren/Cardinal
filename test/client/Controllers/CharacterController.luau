@@ -8,6 +8,10 @@ local CharacterController = {}
 
 function CharacterController:OnInit()
 	CharacterService = Cardinal.GetService("CharacterService")
+
+	CharacterService.TestProperty:Observe(function(Value)
+		print("Test property changed: ", Value)
+	end)
 end
 
 function CharacterController:OnLocalPLayer(Character)
