@@ -487,14 +487,10 @@ return table.freeze({
 			return Promise.reject("Can't load Modules once the Loader is already started.")
 		end
 
-		local Deep = false
+		local Deep = if LoadOptions and LoadOptions.Deep then LoadOptions.Deep else false
 		local Predicate = if LoadOptions and LoadOptions.Predicate then LoadOptions.Predicate else nil
 		local Exclusions = if LoadOptions and LoadOptions.Exclusions then LoadOptions.Exclusions else nil
-
-		if LoadOptions and not LoadOptions.Deep then
-			Deep = false
-		end
-
+		
 		local Modules = {} :: { ModuleScript }
 
 		for _, Object in pairs(if Deep then Parent:GetDescendants() else Parent:GetChildren()) do
