@@ -65,7 +65,9 @@ local RemoteSignal = {}
 RemoteSignal.__index = RemoteSignal
 
 function RemoteSignal.new(Net: { CreateEvent: (self: unknown, string) -> unknown }, Name: string)
-	local self = setmetatable({}, RemoteSignal)
+	local self = setmetatable({
+        _Name = Name,
+    }, RemoteSignal)
 
 	self.Event = Net:CreateEvent(Name)
 
@@ -88,6 +90,10 @@ if RunService:IsServer() then
 	function RemoteSignal:Connect(Callback: (Player: Player, ...any) -> ())
 		return self.Event:Connect(Callback)
 	end
+
+    function RemoteSignal:Once(Callback: (Player: Player, ...any) -> ())
+        return self.Event:Once(Callback) 
+    end
 else
 	function RemoteSignal:Fire(...)
 		self.Event:Fire(...)
@@ -96,6 +102,10 @@ else
 	function RemoteSignal:Connect(Callback: (...any) -> ())
 		return self.Event:Connect(Callback)
 	end
+
+    function RemoteSignal:Once(Callback: (...any) -> ())
+        return self.Event:Once(Callback) 
+    end
 end
 
 function RemoteSignal:Destroy()

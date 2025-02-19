@@ -9,42 +9,68 @@ type ClientBridge = typeof(BridgeNet.ClientBridge(""))
 
 export type ServerEvent = {
 	Fire: (self: ServerEvent, Player, ...any) -> (),
+	_Name: string,
 	FireAll: (self: ServerEvent, ...any) -> (),
-	FireAllExcept: (self: ServerEvent, { Player } | Player, ...any) -> (),
 	Connect: (self: ServerEvent, Callback: () -> ()) -> (),
 	SetCallback: (Callback: () -> ()) -> (),
+	FireAllExcept: (self: ServerEvent, { Player } | Player, ...any) -> (),
 }
 
 export type ClientEvent = {
+	_Name: string,
 	Fire: (self: ClientEvent, ...any) -> (),
 	Connect: (self: ClientEvent, Callback: () -> ()) -> (),
 }
 
 export type ServerNet = {
-	CreateEvent: (self: ServerNet, Name: string) -> ServerEvent,
+	Name: string,
 	AddInvoke: (self: ServerNet, EventName: string, Callback: () -> ...any?) -> (),
-	Bridge: ServerBridge,
+	CreateEvent: (self: ServerNet, Name: string) -> ServerEvent,
 }
 
 export type ClientNet = {
+	Name: string,
 	CreateEvent: (self: ClientNet, Name: string) -> ClientEvent,
-	Bridge: ClientBridge,
 }
 
 local RemoteSignal = require(script.RemoteSignal)
 local RemoteProperty = require(script.RemoteProperty)
 
-local CachedNets = {}
+local Bridge = if IsServer then BridgeNet.ServerBridge("Cardinal") else BridgeNet.ClientBridge("Cardinal")
+
+local Cache = {}
+
+Bridge:Connect(function(...)
+	local Args = if typeof(...) == "table" then ... else { ... }
+
+	local _Bridge = table.remove(Args, 1)
+	if not Cache[_Bridge] then
+		Cache[_Bridge] = {}
+	end
+
+	local _Event = table.remove(Args, 1)
+	if not Cache[_Bridge][_Event] then
+		Cache[_Bridge][_Event] = {}
+	end
+	
+	table.insert(Cache[_Bridge][_Event], {
+		Sent = false,
+		Args = if IsServer then Args[2] else Args,
+		Player = if IsServer then Args[1] else nil,
+	})
+end)
 
 local function MakeEvent(Net: ServerNet | ClientNet, EventName: string): ServerEvent | ClientEvent
-	local Event = {} :: ServerEvent | ClientEvent
-	local Connections = {}
+	local Event = {
+		_Name = EventName,
+	} :: ServerEvent | ClientEvent
 
-	local Bridge = Net.Bridge
+	local EventCache = {}
+	local Connections = {}
 
 	if IsServer then
 		function Event:FireAll(...)
-			Bridge:Fire(BridgeNet.AllPlayers(), { EventName, ... })
+			Bridge:Fire(BridgeNet.AllPlayers(), { Net.Name, EventName, ... })
 		end
 
 		function Event:FireAllExcept(Exempt: { Player } | Player, ...)
@@ -56,80 +82,110 @@ local function MakeEvent(Net: ServerNet | ClientNet, EventName: string): ServerE
 				_Exempt = Exempt
 			end
 
-			Bridge:Fire(BridgeNet.PlayersExcept(_Exempt), { EventName, ... })
+			Bridge:Fire(BridgeNet.PlayersExcept(_Exempt), { Net.Name, EventName, ... })
 		end
 
 		function Event:Fire(Player: Player | { Player }, ...)
 			if typeof(Player) == "table" then
-				Bridge:Fire(BridgeNet.Players(Player), { EventName, ... })
+				Bridge:Fire(BridgeNet.Players(Player), { Net.Name, EventName, ... })
 			else
-				Bridge:Fire(Player, { EventName, ... })
+				Bridge:Fire(Player, { Net.Name, EventName, ... })
 			end
-		end
-
-		function Event:Connect(Callback: (...any) -> ())
-			table.insert(Connections, Callback)
-
-			return {
-				Disconnect = function()
-					table.remove(Connections, table.find(Connections, Callback))
-				end,
-			}
 		end
 	else
 		function Event:Fire(...)
-			Bridge:Fire({ EventName, ... })
+			Bridge:Fire({ Net.Name, EventName, ... })
+		end
+	end
+
+	function Event:Connect(Callback: (...any) -> ())
+		EventCache[Callback] = {}
+
+		local Events = Cache[Net.Name] and Cache[Net.Name][EventName]
+
+		if Events and #Events > 0 then
+			for _, Data in pairs(Events) do
+				if not table.find(EventCache[Callback], Data) then
+					table.insert(EventCache[Callback], Data)
+
+					if IsServer then
+						task.spawn(Callback, Data.Player, unpack(Data.Args))
+					else
+						task.spawn(Callback, unpack(Data.Args))
+					end
+				end
+			end
 		end
 
-		function Event:Connect(Callback: (...any) -> ())
-			table.insert(Connections, Callback)
+		table.insert(Connections, Callback)
 
-			return {
-				Disconnect = function()
-					table.remove(Connections, table.find(Connections, Callback))
-				end,
-			}
-		end
+		return {
+			Disconnect = function()
+				for Index = #Connections, 1, -1 do
+					if Connections[Index] == Callback then
+						table.remove(Connections, Index)
+					end
+				end
+			end,
+		}
+	end
+
+	function Event:Once(Callback: (...any) -> ())
+		local Connection
+		Connection = self:Connect(function(...)
+			if Connection then
+				Connection:Disconnect()
+				task.spawn(Callback, ...)
+			end
+		end)
+		return Connection
 	end
 
 	if IsServer then
 		function Event:SetCallback(Callback: (...any) -> unknown)
 			(Net :: ServerNet):AddInvoke(EventName, Callback)
 		end
-
-		Bridge:Connect(function(Player: Player, Args)
-			local _EventName = Args[1]
-
-			if _EventName ~= EventName then
-				return
-			end
-
-			if Connections and #Connections > 0 then
-				for _, Callback in pairs(Connections) do
-					task.spawn(Callback, Player, unpack(Args, 2))
-				end
-			end
-		end)
 	else
 		function Event:Invoke(...)
-			local Args = { EventName, ... }
+			local Args = { Net.Name, EventName, ... }
 			return unpack(Bridge:InvokeServerAsync(Args))
 		end
+	end
 
-		Bridge:Connect(function(Args)
-			local _EventName = Args[1]
+	task.spawn(function()
+		while true do
+			local Events = Cache[Net.Name] and Cache[Net.Name][EventName]
+			
+			if Events and #Events > 0 then
+				for _, Data in pairs(Events) do
+					if Connections and #Connections > 0 then
+						for _, Callback in pairs(Connections) do
+							if not table.find(EventCache[Callback], Data) then
+								table.insert(EventCache[Callback], Data)
+								if IsServer then
+									task.spawn(Callback, Data.Player, unpack(Data.Args))
+								else
+									task.spawn(Callback, unpack(Data.Args))
+								end
+							end
 
-			if _EventName ~= EventName then
-				return
-			end
-
-			if Connections and #Connections > 0 then
-				for _, Callback in pairs(Connections) do
-					task.spawn(Callback, unpack(Args, 2))
+							Data.Sent = true
+						end
+					end
 				end
 			end
-		end)
-	end
+
+			if Events and #Events > 0 then
+				for Index = #Events, 1, -1 do
+					if Events[Index].Sent then
+						table.remove(Events, Index)
+					end
+				end
+			end
+
+			task.wait()
+		end
+	end)
 
 	return Event
 end
@@ -185,22 +241,36 @@ end
 	end
 	```
 ]=]
+
+local Bridges = {}
+
+if IsServer then
+	Bridge.OnServerInvoke = function(Player, Args)
+		local _Bridge = table.remove(Args, 1)
+		local Found = Bridges[_Bridge]
+		if Found then
+			local _Event = table.remove(Args, 1)
+			local Event = Found and Found.Invokes[_Event]
+			if Event then
+				return { Event(Player, unpack(Args)) }
+			end
+		end
+	end
+end
+
 return table.freeze({
 	CreateSignal = RemoteSignal.new,
 	CreateProperty = RemoteProperty.new,
 
 	new = function(Name: string): ServerNet | ClientNet
-		if CachedNets[Name] then
-			return CachedNets[Name]
+		if Bridges[Name] then
+			return Bridges[Name]
 		end
-
-		local Bridge = if IsServer then BridgeNet.ServerBridge(Name) else BridgeNet.ClientBridge(Name)
 
 		local Net = {} :: ServerNet | ClientNet
 
+		Net.Name = Name
 		Net.CreateEvent = MakeEvent :: (self: ServerNet | ClientNet, EventName: string) -> ServerEvent | ClientEvent
-
-		Net.Bridge = Bridge
 
 		if IsServer then
 			local Invokes = {}
@@ -213,18 +283,10 @@ return table.freeze({
 				end
 			end
 
-			Bridge.OnServerInvoke = function(Player, Args)
-				local Event = table.remove(Args, 1)
-
-				if Invokes[Event] then
-					return { Invokes[Event](Player, unpack(Args)) }
-				end
-
-				return nil
-			end
+			Net.Invokes = Invokes
 		end
 
-		CachedNets[Name] = Net
+		Bridges[Name] = Net
 		return Net
 	end,
 })

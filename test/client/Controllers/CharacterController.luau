@@ -14,8 +14,8 @@ function CharacterController:OnInit()
 	end)
 end
 
-function CharacterController:OnLocalPLayer(Character)
-	print("Character added", Character)
+function CharacterController:OnLocalPlayer(Player)
+	print("Player added", Player)
   
 	CharacterService.TestSignal:Connect(function()
 		print("Test signal received")

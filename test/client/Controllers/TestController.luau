@@ -13,7 +13,7 @@ end
 function Controller:OnLocalCharacter(Character)
     print("Character added", Character)
 
-    CharacterService.TestSignal:Connect(function()
+    CharacterService.TestSignal:Once(function()
         print("Test signal received")
     end)
 end

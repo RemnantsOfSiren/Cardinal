@@ -646,7 +646,7 @@ return table.freeze({
 					until tick() - T > 10 or Module.__Initialized
 
 					if not Module.__Initialized then
-						error(`@Cardinal - module: {Name} took too long to initialize.`)
+						warn(`@Cardinal - module: {Name} took too long to initialize.`)
 					end
 				end)
 
@@ -681,7 +681,7 @@ return table.freeze({
 							until tick() - T > 10 or Module.__Started
 
 							if not Module.__Started then
-								error(`@Cardinal - module: {Name} took too long to start.`)
+								warn(`@Cardinal - module: {Name} took too long to start.`)
 							end
 						end)
 
@@ -864,7 +864,7 @@ return table.freeze({
 						task.wait()
 					end
 				end)
-
+				
 				if RunService:IsServer() then
 					local Success, Error = pcall(game.BindToClose, game, function()
 						task.cancel(Thread)
