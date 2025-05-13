@@ -15,6 +15,12 @@ end
 
 function CharacterService:OnCharacterAdded(_, Player)
 	task.delay(0, self.Client.TestSignal.Fire, self.Client.TestSignal, Player)
+	task.spawn(function()
+		while true do
+			self.Client.TestSignal:Fire(Player, "1", "2", "3")
+			task.wait()
+		end
+	end)
 end
 
 return CharacterService

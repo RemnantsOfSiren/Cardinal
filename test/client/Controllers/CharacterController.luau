@@ -14,11 +14,11 @@ function CharacterController:OnInit()
 	end)
 end
 
-function CharacterController:OnLocalPLayer(Character)
+function CharacterController:OnLocalPlayer(Character)
 	print("Character added", Character)
   
-	CharacterService.TestSignal:Connect(function()
-		print("Test signal received")
+	CharacterService.TestSignal:Connect(function(...)
+		print("Test signal received: ", ...)
 	end)
 end
 

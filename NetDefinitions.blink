@@ -1,0 +1,31 @@
+option RemoteScope = "Cardinal"
+option ServerOutput = "src/Net/Server.luau"
+option ClientOutput = "src/Net/Client.luau"
+
+map optionalUnknownArray = { [u8]: unknown }?
+
+struct packet {
+    Net: string,
+    Event: string,
+    Args: optionalUnknownArray
+}
+
+function RemoteFunction {
+    Yield: Coroutine,
+    Data: packet,
+    Return: optionalUnknownArray,
+}
+
+event ServerEvent {
+    From: Client,
+    Type: Reliable,
+    Call: ManySync,
+    Data: packet,
+}
+
+event ClientEvent {
+    From: Server,
+    Type: Reliable,
+    Call: ManySync,
+    Data: packet,
+}
