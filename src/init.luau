@@ -248,6 +248,8 @@ type Callback = (Instance) -> () -> nil
 local RunService = game:GetService("RunService")
 local PlayerService = game:GetService("Players")
 
+local Trove = require(script.Parent.Trove) :: { [any]: any }
+local Signal = require(script.Parent.Signal) :: { [any]: any }
 local Promise = require(script.Parent.Promise) :: { [any]: any }
 
 local Net = require(script.Net) :: any
@@ -261,7 +263,9 @@ local EventLog: { [string]: { Packet } } = {
 	["PlayerAdded"] = {},
 	["CharacterAdded"] = {},
 	["PlayerRemoving"] = {},
-} -- Pre-emptive table in-case events are fired before the client/server is ready.
+}
+
+local Cleaner = Trove.new()
 
 local function CreatePacket(...): Packet
 	return {
@@ -284,13 +288,13 @@ local function OnPlayerAdded(Player)
 	Player.CharacterAdded:Connect(OnCharacterAdded)
 end
 
-PlayerService.PlayerAdded:Connect(OnPlayerAdded)
+Cleaner:Connect(PlayerService.PlayerAdded, OnPlayerAdded)
 
 for _, Player in PlayerService:GetPlayers() do
 	task.spawn(OnPlayerAdded, Player)
 end
 
-PlayerService.PlayerRemoving:Connect(function(Player)
+Cleaner:Connect(PlayerService.PlayerRemoving, function(Player)
 	table.insert(EventLog["PlayerRemoving"], CreatePacket(Player))
 end)
 
@@ -372,8 +376,8 @@ export type Controller = {
 	OnPostSimulation: (DeltaTime: number) -> ()?,
 }
 
-local Signal = newproxy(false)
-local Property = newproxy(false)
+local SignalFlag = newproxy(false)
+local PropertyFlag = newproxy(false)
 
 --[=[
 	@function Load
@@ -456,17 +460,52 @@ export type LoadOptions = {
 	Exclusions: { string }?,
 }
 
+local BindToCloseSignal = if IsServer then Signal.new() else nil
+
+local CustomEvents = {
+	["BindToClose"] = BindToCloseSignal,
+}
+
+if IsServer then
+	game:BindToClose(function(Reason: Enum.CloseReason)
+		if BindToCloseSignal then
+			BindToCloseSignal:Fire(Reason)
+		end
+
+		Cleaner:Destroy()
+	end)
+end
+
 return table.freeze({
 	Net = Net,
 	Icon = if not IsServer then require(script.Icon) else nil,
 	Player = if not IsServer then PlayerService.LocalPlayer else nil,
 
+	AddCustomLifecycle = function(Name: string, _Signal: any)
+		if CustomEvents[Name] then
+			return Promise.reject("Custom lifecycle already exists.")
+		end
+
+		CustomEvents[Name] = _Signal
+		
+		if Started then
+			Cleaner:Connect(_Signal, function(...) 
+				for _, Module in pairs(Loaded) do
+					local Lifecycle = Module["On" .. Name] or Module[Name]
+					if Lifecycle and typeof(Lifecycle) == "function" then
+						task.spawn(Lifecycle, Module, ...)
+					end
+				end
+			end)
+		end
+	end,
+
 	CreateSignal = function()
-		return Signal
+		return SignalFlag
 	end,
 
 	CreateProperty = function(InitialValue: any)
-		return { Property, InitialValue }
+		return { PropertyFlag, InitialValue }
 	end,
 
 	OnStart = function()
@@ -475,7 +514,7 @@ return table.freeze({
 		else
 			return Promise.new(function(Resolve)
 				repeat
-					task.wait(0)
+					task.wait()
 				until Started
 				return Resolve()
 			end)
@@ -541,8 +580,8 @@ return table.freeze({
 					local Network = Net.new(Name) :: { CreateEvent: (any, string) -> { [any]: any } }
 
 					local GetEvents = Network:CreateEvent("GetEvents")
-					local GetProperties = Network:CreateEvent("GetProperties")
 					local GetSignals = Network:CreateEvent("GetSignals")
+					local GetProperties = Network:CreateEvent("GetProperties")
 
 					for _, Event in GetEvents:Invoke() do
 						local _Event = Network:CreateEvent(Event)
@@ -606,27 +645,31 @@ return table.freeze({
 					return ClientSignals
 				end)
 
-				for Event, Callback in Module.Client do
-					if typeof(Callback) == "function" then
-						local _Event = _Net:CreateEvent(Event)
+				if IsServer and Module.Client then
+					for Event, Callback in Module.Client do
+						if typeof(Callback) == "function" then
+							local _Event = _Net:CreateEvent(Event)
 
-						_Event:SetCallback(function(Player, ...)
-							return Callback(Module.Client, Player, ...)
-						end)
+							_Event:SetCallback(function(Player, ...)
+								return Callback(Module.Client, Player, ...)
+							end)
 
-						table.insert(ClientEvents, Event)
-					elseif typeof(Callback) == "userdata" and Callback == Signal then
-						Module.Client[Event] = Net.CreateSignal(_Net, Event)
-						table.insert(ClientSignals, Event)
-					elseif
-						typeof(Callback) == "table"
-						and typeof(Callback[1]) == "userdata"
-						and Callback[1] == Property
-					then
-						local InitialValue = Callback[2]
-						Module.Client[Event] = Net.CreateProperty(_Net, Event, InitialValue)
-						table.insert(ClientProperties, { Event, InitialValue })
+							table.insert(ClientEvents, Event)
+						elseif typeof(Callback) == "userdata" and Callback == SignalFlag then
+							Module.Client[Event] = Net.CreateSignal(_Net, Event)
+							table.insert(ClientSignals, Event)
+						elseif
+							typeof(Callback) == "table"
+							and typeof(Callback[1]) == "userdata"
+							and Callback[1] == PropertyFlag
+						then
+							local InitialValue = Callback[2]
+							Module.Client[Event] = Net.CreateProperty(_Net, Event, InitialValue)
+							table.insert(ClientProperties, { Event, InitialValue })
+						end
 					end
+				elseif not IsServer and Module.Client then
+					warn(`@Cardinal - Creating Client Exposed functionality should be handled on the Server. Please remove .Client from {Name} Controller.`)
 				end
 
 				table.insert(Nets, Name)
@@ -638,7 +681,7 @@ return table.freeze({
 
 			if Init then
 				Module.__Initialized = false
-				task.spawn(function()
+				Cleaner:Add(task.spawn(function()
 					local T = tick()
 
 					repeat
@@ -648,9 +691,9 @@ return table.freeze({
 					if not Module.__Initialized then
 						warn(`@Cardinal - module: {Name} took too long to initialize.`)
 					end
-				end)
+				end), true)
 
-				task.spawn(function()
+				Cleaner:Add(task.spawn(function()
 					debug.profilebegin(`Initializing {Name}`)
 					table.insert(
 						Temp,
@@ -660,7 +703,7 @@ return table.freeze({
 						end)
 					)
 					debug.profileend()
-				end)
+				end), true)
 			end
 		end
 
@@ -673,7 +716,7 @@ return table.freeze({
 
 					if Start then
 						Module.__Started = false
-						task.spawn(function()
+						Cleaner:Add(task.spawn(function()
 							local T = tick()
 
 							repeat
@@ -683,9 +726,9 @@ return table.freeze({
 							if not Module.__Started then
 								warn(`@Cardinal - module: {Name} took too long to start.`)
 							end
-						end)
+						end), true)
 
-						task.spawn(function()
+						Cleaner:Add(task.spawn(function()
 							debug.profilebegin(`Starting {Name}`)
 							table.insert(
 								Temp,
@@ -695,7 +738,7 @@ return table.freeze({
 								end)
 							)
 							debug.profileend()
-						end)
+						end), true)
 					end
 				end
 			end)
@@ -707,7 +750,14 @@ return table.freeze({
 						CharacterAdded = {},
 						PlayerRemoving = {},
 					},
+					CustomEvents = {},
 				}
+
+				for Event in pairs(CustomEvents) do
+					if not Events.CustomEvents[Event] then
+						Events.CustomEvents[Event] = {}
+					end
+				end
 
 				if RunService:IsClient() then
 					Events.PlayerService.LocalPlayer = {}
@@ -753,18 +803,25 @@ return table.freeze({
 							table.insert(Events.PlayerService[Event], function(...)
 								Callback(Module, ...)
 							end)
+						elseif CustomEvents[Event] then
+							table.insert(Events.CustomEvents[Event], function(...)
+								Callback(Module, ...)
+							end)
 						end
 					end
 				end
 
-				local Net = Instance.new("StringValue")
-				Net.Name = "NetworkEvents"
-				Net.Value = table.concat(Nets, ":")
-				Net.Parent = script
-
 				for Event, Callbacks in pairs(Events.RunService) do
-					RunService[Event]:Connect(function(...)
+					Cleaner:Connect(RunService[Event], function(...)
 						for _, Callback in pairs(Callbacks) do
+							task.spawn(Callback, ...)
+						end
+					end)
+				end
+
+				for Event, _Signal in pairs(CustomEvents) do
+					Cleaner:Connect(_Signal, function(...)
+						for _, Callback in pairs(Events.CustomEvents[Event]) do
 							task.spawn(Callback, ...)
 						end
 					end)
@@ -838,7 +895,7 @@ return table.freeze({
 					end
 				end
 
-				local Thread = task.spawn(function()
+				task.spawn(function()
 					while true do
 						for Event: string, Log: { Packet } in EventLog do
 							for I = #Log, 1, -1 do
@@ -866,23 +923,14 @@ return table.freeze({
 				end)
 				
 				if RunService:IsServer() then
-					local Success, Error = pcall(game.BindToClose, game, function()
-						task.cancel(Thread)
-
-						for _, Player in pairs(PlayerService:GetPlayers()) do
-							task.spawn(PlayerRemoving, Player)
-						end
-					end)
-
-					if not Success then
-						error(`@Cardinal - Error binding to close: ` .. Error)
-					end
-
+					local _Net = Instance.new("StringValue")
+					_Net.Name = "NetworkEvents"
+					_Net.Value = table.concat(Nets, ":")
+					_Net.Parent = script
 					script:SetAttribute("ServerReady", true)
 				end
 
 				Started = true
-				script:SetAttribute("Started", true)
 				return Promise.resolve("@Cardinal - Started")
 			end)
 	end,
