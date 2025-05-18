@@ -9,6 +9,23 @@ local CharacterService = {
 	},
 }
 
+local BindableEvent = Instance.new("BindableEvent")
+
+function CharacterService:OnStart()
+	Cardinal.AddCustomLifecycle("TestEvent", BindableEvent.Event)
+
+	task.spawn(function() 
+		while true do
+			BindableEvent:Fire("TestEvent", "Hello", "World")
+			task.wait(1)
+		end
+	end)
+end
+
+function CharacterService:OnTestEvent(...)
+	print(...)
+end
+
 function CharacterService:OnPlayerAdded(Player)
 	self.Client.TestProperty:SetFor(Player, true)
 end

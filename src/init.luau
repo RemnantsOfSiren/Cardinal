@@ -482,15 +482,22 @@ return table.freeze({
 	Player = if not IsServer then PlayerService.LocalPlayer else nil,
 
 	AddCustomLifecycle = function(Name: string, _Signal: any)
-		if Started then
-			return Promise.reject("Can't add custom lifecycle once the Loader is already started.")
-		end
-
 		if CustomEvents[Name] then
 			return Promise.reject("Custom lifecycle already exists.")
 		end
 
 		CustomEvents[Name] = _Signal
+		
+		if Started then
+			Cleaner:Connect(_Signal, function(...) 
+				for _, Module in pairs(Loaded) do
+					local Lifecycle = Module["On" .. Name] or Module[Name]
+					if Lifecycle and typeof(Lifecycle) == "function" then
+						task.spawn(Lifecycle, Module, ...)
+					end
+				end
+			end)
+		end
 	end,
 
 	CreateSignal = function()
@@ -888,7 +895,7 @@ return table.freeze({
 					end
 				end
 
-				Cleaner:Add(task.spawn(function()
+				task.spawn(function()
 					while true do
 						for Event: string, Log: { Packet } in EventLog do
 							for I = #Log, 1, -1 do
@@ -913,7 +920,7 @@ return table.freeze({
 						end
 						task.wait()
 					end
-				end), true)
+				end)
 
 				if RunService:IsServer() then
 					local _Net = Instance.new("StringValue")
