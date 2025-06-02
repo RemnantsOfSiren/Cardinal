@@ -5,3 +5,4 @@
 
 [tools]
 blink = "1Axen/blink@0.17.2"
+rojo = "rojo-rbx/rojo@7.5.1"

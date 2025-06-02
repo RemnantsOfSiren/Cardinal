@@ -40,4 +40,12 @@ function CharacterService:OnCharacterAdded(_, Player)
 	end)
 end
 
+function CharacterService.Client:ThisShouldWork(Player)
+	print("This should work for", Player.Name)
+	return {
+		Success = true,
+		Message = "This worked!",
+	}
+end
+
 return CharacterService

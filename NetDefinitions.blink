@@ -13,19 +13,19 @@ struct packet {
 function RemoteFunction {
     Yield: Coroutine,
     Data: packet,
-    Return: optionalUnknownArray,
+    Return: unknown,
 }
 
 event ServerEvent {
     From: Client,
     Type: Reliable,
-    Call: ManySync,
-    Data: packet,
+    Call: SingleSync,
+    Data: packet?,
 }
 
 event ClientEvent {
     From: Server,
     Type: Reliable,
-    Call: ManySync,
-    Data: packet,
+    Call: SingleSync,
+    Data: packet?,
 }

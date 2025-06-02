@@ -100,6 +100,20 @@ function Event:Connect(Callback: (...any) -> nil)
     }
 end
 
+function Event:Once(Callback: (...any) -> nil)
+    local Connection
+
+    Connection = self:Connect(function(...)
+        if Connection then
+            Connection:Disconnect()
+        end
+
+        task.spawn(Callback, ...)
+    end)
+
+    return Connection
+end
+
 local Bridges = {}
 
 local Bridge = {}
@@ -139,7 +153,7 @@ if IsServer then
         local _Bridge = Bridges[BridgeName]
 
         if not _Bridge then
-            return
+            return nil
         end
 
         local _Event = _Bridge._Events[EventName]
@@ -179,7 +193,7 @@ else
         local _Bridge = Bridges[BridgeName]
 
         if not _Bridge then
-            return
+            return {}
         end
 
         local _Event = _Bridge._Events[EventName]

@@ -435,18 +435,11 @@ local PropertyFlag = newproxy(false)
 ]=]
 
 --[=[
-	@prop Icon Icon
+	@function AddCustomLifecycle
 	@within Cardinal
-	@client
-
-	This is an expose for TopbarPlus (https://devforum.roblox.com/t/1017485)
-
-	it returns the Icon module, due to the Wally for topbarplus being broken, I've just ported it directly into Cardinal.
-]=]
-
---[=[
-	@prop Net Net
-	@within Cardinal
+	@param Name: string
+	@param Signal: any
+	Adds a custom lifecycle event to the Loader. This will allow you to add custom events that can be used in your services/controllers.
 ]=]
 
 --[=[
@@ -477,8 +470,6 @@ if IsServer then
 end
 
 return table.freeze({
-	Net = Net,
-	Icon = if not IsServer then require(script.Icon) else nil,
 	Player = if not IsServer then PlayerService.LocalPlayer else nil,
 
 	AddCustomLifecycle = function(Name: string, _Signal: any)
@@ -500,12 +491,18 @@ return table.freeze({
 		end
 	end,
 
-	CreateSignal = function()
+	CreateSignal = if IsServer then function()
 		return SignalFlag
+	end else function()
+		warn("@Cardinal - CreateSignal can only be called on the Server.")
+		return nil
 	end,
 
-	CreateProperty = function(InitialValue: any)
+	CreateProperty = if IsServer then function(InitialValue: any)
 		return { PropertyFlag, InitialValue }
+	end else function()
+		warn("@Cardinal - CreateProperty can only be called on the Server.")
+		return nil
 	end,
 
 	OnStart = function()

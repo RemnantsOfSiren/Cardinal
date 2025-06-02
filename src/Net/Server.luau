@@ -152,7 +152,6 @@ local Queue: any = {
 }
 
 Queue.Reliable[0] = table.create(256)
-Events.Reliable[1] = {}
 Queue.Reliable[1] = table.create(256)
 export type optionalUnknownArray = {[number]: any}?
 export type packet = { Net: string, Event: string, Args: {[number]: any}? }
@@ -180,75 +179,73 @@ local function ReadFUNCTION_DATA_RemoteFunction(): ({ Net: string, Event: string
 	return Value
 end
 
-local function WriteFUNCTION_RETURN_RemoteFunction(Value: {[number]: any}?, InvocationIdentifier: number): ()
-	-- Allocate BLOCK: 4 bytes
-	local BLOCK_START = Allocate(4)
+local function WriteFUNCTION_RETURN_RemoteFunction(Value: any, InvocationIdentifier: number): ()
+	-- Allocate BLOCK: 3 bytes
+	local BLOCK_START = Allocate(3)
 	buffer.writeu8(SendBuffer, BLOCK_START + 0, 0)
 	buffer.writeu8(SendBuffer, BLOCK_START + 1, InvocationIdentifier)
 	buffer.writeu8(SendBuffer, BLOCK_START + 2, 1)
-	buffer.writeu8(SendBuffer, BLOCK_START + 3, Value ~= nil and 1 or 0)
-	if Value ~= nil then
-		-- Allocate BLOCK: 2 bytes
-		local BLOCK_START = Allocate(2)
-		local Elements_2 = 0
-		for Key_2, Element_2 in Value do
-			Elements_2 += 1
-			local OFFSET_0 = Allocate(1)
-			buffer.writeu8(SendBuffer, OFFSET_0, Key_2)
-			table.insert(SendInstances, if Element_2 == nil then Null else Element_2)
-		end
-		buffer.writeu16(SendBuffer, BLOCK_START + 0, Elements_2)
-	end
+	table.insert(SendInstances, if Value == nil then Null else Value)
 end
 
-local function ReadEVENT_ServerEvent(): ({ Net: string, Event: string, Args: {[number]: any}? })
-	-- Read BLOCK: 5 bytes
-	local BLOCK_START = Read(5)
-	local Value = {} :: any
-	local Length = buffer.readu16(RecieveBuffer, BLOCK_START + 0)
-	Value.Net = buffer.readstring(RecieveBuffer, Read(Length), Length)
-	Length = buffer.readu16(RecieveBuffer, BLOCK_START + 2)
-	Value.Event = buffer.readstring(RecieveBuffer, Read(Length), Length)
-	if buffer.readu8(RecieveBuffer, BLOCK_START + 4) == 1 then
-		-- Read BLOCK: 2 bytes
-		local BLOCK_START = Read(2)
-		Value.Args = {}
-		local Elements_2 = buffer.readu16(RecieveBuffer, BLOCK_START + 0)
-		for _ = 1, Elements_2 do
-			local OFFSET_0 = Read(1)
-			local Key_2 = buffer.readu8(RecieveBuffer, OFFSET_0)
-			RecieveInstanceCursor += 1
-			local Element_2 = RecieveInstances[RecieveInstanceCursor]
-			Value.Args[Key_2] = Element_2
+local function ReadEVENT_ServerEvent(): ({ Net: string, Event: string, Args: {[number]: any}? }?)
+	-- Read BLOCK: 1 bytes
+	local BLOCK_START = Read(1)
+	local Value
+	if buffer.readu8(RecieveBuffer, BLOCK_START + 0) == 1 then
+		-- Read BLOCK: 5 bytes
+		local BLOCK_START = Read(5)
+		Value = {} :: any
+		local Length = buffer.readu16(RecieveBuffer, BLOCK_START + 0)
+		Value.Net = buffer.readstring(RecieveBuffer, Read(Length), Length)
+		Length = buffer.readu16(RecieveBuffer, BLOCK_START + 2)
+		Value.Event = buffer.readstring(RecieveBuffer, Read(Length), Length)
+		if buffer.readu8(RecieveBuffer, BLOCK_START + 4) == 1 then
+			-- Read BLOCK: 2 bytes
+			local BLOCK_START = Read(2)
+			Value.Args = {}
+			local Elements_3 = buffer.readu16(RecieveBuffer, BLOCK_START + 0)
+			for _ = 1, Elements_3 do
+				local OFFSET_0 = Read(1)
+				local Key_3 = buffer.readu8(RecieveBuffer, OFFSET_0)
+				RecieveInstanceCursor += 1
+				local Element_3 = RecieveInstances[RecieveInstanceCursor]
+				Value.Args[Key_3] = Element_3
+			end
 		end
 	end
 	return Value
 end
 
-local function WriteEVENT_ClientEvent(Value: { Net: string, Event: string, Args: {[number]: any}? }): ()
-	-- Allocate BLOCK: 6 bytes
-	local BLOCK_START = Allocate(6)
+local function WriteEVENT_ClientEvent(Value: { Net: string, Event: string, Args: {[number]: any}? }?): ()
+	-- Allocate BLOCK: 2 bytes
+	local BLOCK_START = Allocate(2)
 	buffer.writeu8(SendBuffer, BLOCK_START + 0, 2)
-	local Length = #Value.Net
-	buffer.writeu16(SendBuffer, BLOCK_START + 1, Length)
-	Allocate(Length)
-	buffer.writestring(SendBuffer, SendOffset, Value.Net, Length)
-	local Length = #Value.Event
-	buffer.writeu16(SendBuffer, BLOCK_START + 3, Length)
-	Allocate(Length)
-	buffer.writestring(SendBuffer, SendOffset, Value.Event, Length)
-	buffer.writeu8(SendBuffer, BLOCK_START + 5, Value.Args ~= nil and 1 or 0)
-	if Value.Args ~= nil then
-		-- Allocate BLOCK: 2 bytes
-		local BLOCK_START = Allocate(2)
-		local Elements_2 = 0
-		for Key_2, Element_2 in Value.Args do
-			Elements_2 += 1
-			local OFFSET_0 = Allocate(1)
-			buffer.writeu8(SendBuffer, OFFSET_0, Key_2)
-			table.insert(SendInstances, if Element_2 == nil then Null else Element_2)
+	buffer.writeu8(SendBuffer, BLOCK_START + 1, Value ~= nil and 1 or 0)
+	if Value ~= nil then
+		-- Allocate BLOCK: 5 bytes
+		local BLOCK_START = Allocate(5)
+		local Length = #Value.Net
+		buffer.writeu16(SendBuffer, BLOCK_START + 0, Length)
+		Allocate(Length)
+		buffer.writestring(SendBuffer, SendOffset, Value.Net, Length)
+		local Length = #Value.Event
+		buffer.writeu16(SendBuffer, BLOCK_START + 2, Length)
+		Allocate(Length)
+		buffer.writestring(SendBuffer, SendOffset, Value.Event, Length)
+		buffer.writeu8(SendBuffer, BLOCK_START + 4, Value.Args ~= nil and 1 or 0)
+		if Value.Args ~= nil then
+			-- Allocate BLOCK: 2 bytes
+			local BLOCK_START = Allocate(2)
+			local Elements_3 = 0
+			for Key_3, Element_3 in Value.Args do
+				Elements_3 += 1
+				local OFFSET_0 = Allocate(1)
+				buffer.writeu8(SendBuffer, OFFSET_0, Key_3)
+				table.insert(SendInstances, if Element_3 == nil then Null else Element_3)
+			end
+			buffer.writeu16(SendBuffer, BLOCK_START + 0, Elements_3)
 		end
-		buffer.writeu16(SendBuffer, BLOCK_START + 0, Elements_2)
 	end
 end
 
@@ -338,11 +335,9 @@ Reliable.OnServerEvent:Connect(function(Player: Player, Buffer: buffer, Instance
 				table.insert(Queue.Reliable[0], {Player, Value, InvocationIdentifier} :: {any})
 			end
 		elseif Index == 1 then
-			local Value: { Net: string, Event: string, Args: {[number]: any}? } = ReadEVENT_ServerEvent()
-			if #Events.Reliable[1] > 0 then
-				for _, Listener in Events.Reliable[1] do
-					Listener(Player, Value)
-				end
+			local Value: { Net: string, Event: string, Args: {[number]: any}? }? = ReadEVENT_ServerEvent()
+			if Events.Reliable[1] ~= nil then
+				Events.Reliable[1](Player, Value)
 			else
 				if #Queue.Reliable[1] > 256 then
 					warn("[Blink]: Event queue of \"ServerEvent\" exceeded 256, did you forget to implement a listener?")
@@ -370,9 +365,9 @@ local Returns = table.freeze({
 	StepReplication = StepReplication,
 
 	RemoteFunction = {
-		On = function(Listener: (Player, { Net: string, Event: string, Args: {[number]: any}? }) -> ({[number]: any}?)): ()
+		On = function(Listener: (Player, { Net: string, Event: string, Args: {[number]: any}? }) -> (any)): ()
 			Events.Reliable[0] = function(Player: Player, Value: { Net: string, Event: string, Args: {[number]: any}? }, InvocationIdentifier: number): ()
-				local ReturnValue: {[number]: any}?;
+				local ReturnValue: any;
 				local Success, Error = pcall(function ()
 					ReturnValue = Listener(Player, Value)
 				end)
@@ -398,27 +393,26 @@ local Returns = table.freeze({
 		end
 	},
 	ServerEvent = {
-		On = function(Listener: (Player: Player, Value: { Net: string, Event: string, Args: {[number]: any}? }) -> ()): () -> ()
-			table.insert(Events.Reliable[1], Listener)
+		On = function(Listener: (Player: Player, Value: { Net: string, Event: string, Args: {[number]: any}? }?) -> ()): () -> ()
+			Events.Reliable[1] = Listener
 			for Index, Arguments in Queue.Reliable[1] do
 				Listener(table.unpack(Arguments))
 			end
 			Queue.Reliable[1] = {}
 			return function (): ()
-				local Index = table.find(Events.Reliable[1], Listener)
-				if Index ~= nil then
-					table.remove(Events.Reliable[1], Index)
+				if Events.Reliable[1] == Listener then
+					Events.Reliable[1] = nil
 				end
 			end
 		end
 	},
 	ClientEvent = {
-		Fire = function(Player: Player, Value: { Net: string, Event: string, Args: {[number]: any}? }): ()
+		Fire = function(Player: Player, Value: { Net: string, Event: string, Args: {[number]: any}? }?): ()
 			Load(PlayersMap[Player])
 			WriteEVENT_ClientEvent(Value)
 			PlayersMap[Player] = Save()
 		end,
-		FireAll = function(Value: { Net: string, Event: string, Args: {[number]: any}? }): ()
+		FireAll = function(Value: { Net: string, Event: string, Args: {[number]: any}? }?): ()
 			Load()
 			WriteEVENT_ClientEvent(Value)
 			local Buffer, Size, Instances = SendBuffer, SendCursor, SendInstances
@@ -430,7 +424,7 @@ local Returns = table.freeze({
 				PlayersMap[Player] = Save()
 			end
 		end,
-		FireList = function(List: {Player}, Value: { Net: string, Event: string, Args: {[number]: any}? }): ()
+		FireList = function(List: {Player}, Value: { Net: string, Event: string, Args: {[number]: any}? }?): ()
 			Load()
 			WriteEVENT_ClientEvent(Value)
 			local Buffer, Size, Instances = SendBuffer, SendCursor, SendInstances
@@ -442,7 +436,7 @@ local Returns = table.freeze({
 				PlayersMap[Player] = Save()
 			end
 		end,
-		FireExcept = function(Except: Player, Value: { Net: string, Event: string, Args: {[number]: any}? }): ()
+		FireExcept = function(Except: Player, Value: { Net: string, Event: string, Args: {[number]: any}? }?): ()
 			Load()
 			WriteEVENT_ClientEvent(Value)
 			local Buffer, Size, Instances = SendBuffer, SendCursor, SendInstances

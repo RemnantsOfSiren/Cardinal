@@ -20,6 +20,8 @@ function CharacterController:OnLocalPlayer(Player)
 	CharacterService.TestSignal:Connect(function(...)
 		print("Test signal received: ", ...)
 	end)
+
+	print(CharacterService:ThisShouldWork())
 end
 
 return CharacterController
