@@ -1,9 +1,10 @@
 [package]
 name = "remnantsofsiren/cardinal"
-version = "1.7.6"
+version = "1.7.7"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 description = "A simple Framework, more like module loader, for creating Roblox games. Uses Libraries like BridgeNet, Promise, Signal, and Trove; credit to their original owners."
+exclude = ["build", "NetDefinitions.blink", "test.project.json", "default.project.json", "rokit.toml", "selene.toml", "test"]
 
 [place]
 shared-packages = "game.ReplicatedStorage.Packages"
