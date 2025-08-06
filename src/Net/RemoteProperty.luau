@@ -151,6 +151,7 @@ if RunService:IsServer() then
 						task.wait()
 					until self._ClientsReady[Player]
 				end
+
 				self.Values[Player] = if typeof(Value) == "table" then DeepCopy(Value :: { any }) else Value
 				self.Event:Fire(Player, self.Values[Player])
 				self.Changed:Fire(Player, self.Values[Player])
@@ -162,9 +163,17 @@ if RunService:IsServer() then
 		self._InitialValue = Value
 
 		for Player in self.Values do
-			self.Values[Player] = if typeof(Value) == "table" then DeepCopy(Value :: { any }) else Value
-			self.Event:Fire(Player, self.Values[Player])
-			self.Changed:Fire(Player, self.Values[Player])
+			task.spawn(function()
+				if not self._ClientsReady[Player] then
+					repeat
+						task.wait()
+					until self._ClientsReady[Player]
+				end
+
+				self.Values[Player] = if typeof(Value) == "table" then DeepCopy(Value :: { any }) else Value
+				self.Event:Fire(Player, self.Values[Player])
+				self.Changed:Fire(Player, self.Values[Player])
+			end)
 		end
 	end
 

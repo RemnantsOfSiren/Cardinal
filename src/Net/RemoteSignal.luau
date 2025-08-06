@@ -76,7 +76,11 @@ end
 
 if RunService:IsServer() then
 	function RemoteSignal:Fire(Players: { Player } | Player, ...: any)
-		self.Event:Fire(Players, ...)
+		if typeof(Players) == "Instance" then
+            self.Event:Fire(Players, ...)
+        else
+            self.Event:FireList(Players, ...)
+        end
 	end
 
 	function RemoteSignal:FireAll(...)
