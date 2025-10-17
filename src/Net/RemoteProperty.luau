@@ -3,6 +3,9 @@ local RunService = game:GetService("RunService")
 
 local Trove = require(script.Parent.Parent.Parent.Trove) :: { any }
 local Signal = require(script.Parent.Parent.Parent.Signal) :: { any }
+local Promise = require(script.Parent.Parent.Parent.Promise) :: { any }
+
+type Promise = typeof(Promise.new())
 
 local function DeepCopy(Table: { any })
 	local NewTable = {}
@@ -86,9 +89,12 @@ RemoteProperty.__index = RemoteProperty
 function RemoteProperty.new(
 	Net: { CreateEvent: (self: unknown, string) -> unknown },
 	Name: string,
-	InitialValue: unknown
+	InitialValue: unknown,
+	ServicePromise: boolean?
 )
-	local self = setmetatable({}, RemoteProperty)
+	local self = setmetatable({
+		ServicePromise = if ServicePromise ~= nil then ServicePromise else false
+	}, RemoteProperty)
 
 	self.Cleaner = Trove.new()
 	self.Event = Net:CreateEvent(Name)
@@ -100,7 +106,8 @@ function RemoteProperty.new(
 		self._InitialValue = InitialValue
 
 		local function OnPlayerAdded(Player: Player)
-			self.Values[Player] = if typeof(InitialValue) == "table"
+			local Name = Player.Name
+			self.Values[Name] = if typeof(InitialValue) == "table"
 				then DeepCopy(self._InitialValue :: { any })
 				else self._InitialValue
 		end
@@ -112,11 +119,16 @@ function RemoteProperty.new(
 		self.Cleaner:Connect(PlayerService.PlayerAdded, OnPlayerAdded)
 
 		self.Cleaner:Connect(PlayerService.PlayerRemoving, function(Player: Player)
-			self.Values[Player] = nil
+			local Name = Player.Name
+			self.Values[Name] = nil
+			self._ClientsReady[Name] = nil
 		end)
 
 		self.Event:Connect(function(Player: Player)
-			self._ClientsReady[Player] = true
+			local Name = Player.Name
+			self._ClientsReady[Name] = true
+			self.Event:Fire(Player, self.Values[Name])
+			self.Changed:Fire(Player, self.Values[Name])
 		end)
 	else
 		self.Value = InitialValue
@@ -146,15 +158,16 @@ if RunService:IsServer() then
 
 		for _, Player in Players :: { Player } do
 			task.spawn(function()
-				if not self._ClientsReady[Player] then
-					repeat
+				local Name = Player.Name
+				if not self._ClientsReady[Name] then
+					while PlayerService:FindFirstChild(Name) and not self._ClientsReady[Name] do
 						task.wait()
-					until self._ClientsReady[Player]
+					end
 				end
 
-				self.Values[Player] = if typeof(Value) == "table" then DeepCopy(Value :: { any }) else Value
-				self.Event:Fire(Player, self.Values[Player])
-				self.Changed:Fire(Player, self.Values[Player])
+				self.Values[Name] = if typeof(Value) == "table" then DeepCopy(Value :: { any }) else Value
+				self.Event:Fire(Player, self.Values[Name])
+				self.Changed:Fire(Player, self.Values[Name])
 			end)
 		end
 	end
@@ -162,23 +175,28 @@ if RunService:IsServer() then
 	function RemoteProperty:Set(Value)
 		self._InitialValue = Value
 
-		for Player in self.Values do
+		for Name in self.Values do
 			task.spawn(function()
-				if not self._ClientsReady[Player] then
-					repeat
+				if not self._ClientsReady[Name] then
+					while PlayerService:FindFirstChild(Name) and not self._ClientsReady[Name] do
 						task.wait()
-					until self._ClientsReady[Player]
+					end
 				end
 
-				self.Values[Player] = if typeof(Value) == "table" then DeepCopy(Value :: { any }) else Value
-				self.Event:Fire(Player, self.Values[Player])
-				self.Changed:Fire(Player, self.Values[Player])
+				local Player = PlayerService:FindFirstChild(Name)
+				
+				if Player then
+					self.Values[Name] = if typeof(Value) == "table" then DeepCopy(Value :: { any }) else Value
+					self.Event:Fire(Player, self.Values[Name])
+					self.Changed:Fire(Player :: Player, self.Values[Name])
+				end
 			end)
 		end
 	end
 
 	function RemoteProperty:Observe(Callback: (Player: Player, Value: any) -> ())
-		for Player, Value in pairs(self.Values) do
+		for Name, Value in pairs(self.Values) do
+			local Player = PlayerService:FindFirstChild(Name)
 			task.spawn(Callback, Player, Value)
 		end
 
@@ -187,6 +205,43 @@ if RunService:IsServer() then
 		end)
 	end
 else
+	function RemoteProperty:IsReady()
+		return self._Ready
+	end
+
+	function RemoteProperty:OnReady(): Promise | nil?
+		if self.ServicePromise then
+			return Promise.new(function(Resolve, Reject) 
+				if self._Ready then
+					Resolve()
+				else
+					repeat
+						task.wait()
+					until self._Ready
+
+					Resolve()
+				end
+			end)
+		else
+			if not self._Ready then
+				local thread
+				
+				task.spawn(function()
+					repeat
+						task.wait()
+					until self._Ready
+					if thread then
+						coroutine.resume(thread)
+					end
+				end)
+
+				thread = coroutine.yield()
+			end
+		end
+
+		return nil
+	end
+
 	function RemoteProperty:Get(): any
 		return self.Value
 	end
@@ -203,6 +258,10 @@ else
 	function RemoteProperty:Observe(Callback: (any) -> ())
 		task.spawn(Callback, self.Value)
 		return self:Connect(Callback)
+	end
+
+	function RemoteProperty:IsReady()
+
 	end
 end
 

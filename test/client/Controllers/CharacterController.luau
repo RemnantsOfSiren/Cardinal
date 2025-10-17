@@ -21,7 +21,13 @@ function CharacterController:OnLocalPlayer(Player)
 		print("Test signal received: ", ...)
 	end)
 
-	print(CharacterService:ThisShouldWork())
+	CharacterService:ThisShouldWork():andThen(function(Result)
+		if Result.Success then
+			print("This should work: ", Result.Message)
+		else
+			print("This should not work: ", Result.Message)
+		end
+	end)
 end
 
 return CharacterController

@@ -28,8 +28,16 @@ function Event.new(Bridge: string, Name: string)
     }, Event)
 end
 
-function Event:Fire(Player, ...)
-    local Packet = MakePacket(self.Bridge, self.Name, { ... })
+function Event:Fire(...)
+    local Args = { ... }
+
+    local Player
+
+    if IsServer then
+        Player = table.remove(Args, 1)
+    end
+
+    local Packet = MakePacket(self.Bridge, self.Name, Args)
     if IsServer then
         Net.ClientEvent.Fire(Player, Packet)
     else

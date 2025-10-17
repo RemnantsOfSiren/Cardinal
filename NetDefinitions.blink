@@ -2,7 +2,7 @@ option RemoteScope = "Cardinal"
 option ServerOutput = "src/Net/Server.luau"
 option ClientOutput = "src/Net/Client.luau"
 
-map optionalUnknownArray = { [u8]: unknown }?
+map optionalUnknownArray = { [u16]: unknown }?
 
 struct packet {
     Net: string,

@@ -247,6 +247,7 @@ type Callback = (Instance) -> () -> nil
 
 local RunService = game:GetService("RunService")
 local PlayerService = game:GetService("Players")
+local Players = game:GetService("Players")
 
 local Trove = require(script.Parent.Trove) :: { [any]: any }
 local Signal = require(script.Parent.Signal) :: { [any]: any }
@@ -267,6 +268,8 @@ local EventLog: { [string]: { Packet } } = {
 
 local Cleaner = Trove.new()
 
+local Connection = {}
+
 local function CreatePacket(...): Packet
 	return {
 		Args = { ... },
@@ -274,18 +277,22 @@ local function CreatePacket(...): Packet
 	}
 end
 
-local function OnPlayerAdded(Player)
-	table.insert(EventLog["PlayerAdded"], CreatePacket(Player))
+local function OnCharacterAdded(Character, Name)
+	table.insert(EventLog["CharacterAdded"], CreatePacket(Character, Name))
+end
 
-	local function OnCharacterAdded(Character)
-		table.insert(EventLog["CharacterAdded"], CreatePacket(Character, Player))
-	end
+local function OnPlayerAdded(Player)
+	local Name = Player.Name
+
+	table.insert(EventLog["PlayerAdded"], CreatePacket(Name))
 
 	if Player.Character then
-		task.spawn(OnCharacterAdded, Player.Character)
+		task.spawn(OnCharacterAdded, Player.Character, Name)
 	end
 
-	Player.CharacterAdded:Connect(OnCharacterAdded)
+	Connection[Name] = Player.CharacterAdded:Connect(function(Character)
+		task.spawn(OnCharacterAdded, Character, Name)
+	end)
 end
 
 Cleaner:Connect(PlayerService.PlayerAdded, OnPlayerAdded)
@@ -296,23 +303,26 @@ end
 
 Cleaner:Connect(PlayerService.PlayerRemoving, function(Player)
 	table.insert(EventLog["PlayerRemoving"], CreatePacket(Player))
+
+	local Name = Player.Name
+	if Connection[Name] then
+		Connection[Name]:Disconnect()
+		Connection[Name] = nil
+	end
 end)
 
-export type ClientNet = Net.ClientNet
-export type ServerNet = Net.ServerNet
-export type ServerEvent = Net.ServerEvent
-export type ClientEvent = Net.ClientEvent
-
 local IsServer = RunService:IsServer()
+local IsStudio = RunService:IsStudio()
 
 if not IsServer then
-	if workspace.StreamingEnabled then
+	if workspace.StreamingEnabled and IsStudio then
+		-- Run this warning only in studio, to avoid from people who don't understand reporting this as an issue.
 		warn("Some-things may not function as expected due to StreamingEnabled.")
 	end
 
 	if not script:GetAttribute("ServerReady") then
 		while not script:GetAttribute("ServerReady") do
-			task.wait(0)
+			task.wait()
 		end
 	end
 end
@@ -328,9 +338,15 @@ local function Load(Module: ModuleScript)
 		Module = require(Module) :: any
 	end)
 
-	if Success and typeof(Module) == "table" then
-		Loaded[Name] = Module
-	elseif not Success then
+	if Success then
+		if typeof(Module) == "table" then
+			Loaded[Name] = Module
+		else
+			if IsStudio then
+				warn(`@Cardinal - Warning: {Name} module does not return a table. This has not been loaded.`)
+			end
+		end
+	else
 		error(`@Cardinal - Error Loading {Name}: ` .. Error)
 	end
 end
@@ -383,7 +399,7 @@ local PropertyFlag = newproxy(false)
 	@function Load
 	@within Cardinal
 	@param Parent: Instance
-	@param LoadOptions: { Deep: boolean?, Predicate: ((ModuleScript) -> boolean)?, Exclusions: { string }? }?
+	@param LoadOptions { Deep: boolean?, Predicate: ((ModuleScript) -> boolean)?, Exclusions: { string }? }?
 	@return Promise<string>
 	Loads a ModuleScript into the Loader. 
 
@@ -399,8 +415,12 @@ local PropertyFlag = newproxy(false)
 --[=[
 	@function Start
 	@within Cardinal
+	@param Options: { ServicePromise: boolean?, Timeout: number? }?
 	@return Promise<string>
 	Starts the Loader, initializing and starting all services/controllers.
+	Options:
+		ServicePromise is an optional boolean that will determine if the client callback functions should return a Promise.
+		Timeout is an optional number that will determine the timeout for the initialization and starting of the services/controllers.
 ]=]
 
 --[=[
@@ -469,7 +489,9 @@ if IsServer then
 	end)
 end
 
-return table.freeze({
+local ServicePromise = false
+
+return {
 	Player = if not IsServer then PlayerService.LocalPlayer else nil,
 
 	AddCustomLifecycle = function(Name: string, _Signal: any)
@@ -520,6 +542,10 @@ return table.freeze({
 
 	Load = function(Parent: Instance, LoadOptions: LoadOptions?)
 		if Started then
+			if IsStudio then
+				warn("Can't load Modules once the Loader is already started.")
+			end
+
 			return Promise.reject("Can't load Modules once the Loader is already started.")
 		end
 
@@ -559,7 +585,11 @@ return table.freeze({
 
 	GetService = function(Name: string)
 		if IsServer then
-			return warn("GetService can only be called on the Client.")
+			if IsStudio then
+				warn("GetService can only be called on the Client.")
+			end
+
+			return
 		end
 
 		if CachedNets then
@@ -584,16 +614,23 @@ return table.freeze({
 						local _Event = Network:CreateEvent(Event)
 
 						_Net[Event] = function(_, ...)
-							return _Event:Invoke(...)
+							if ServicePromise then
+								local Args = { ... }
+								return Promise.new(function(Resolve, Reject)
+									return Resolve(_Event:Invoke(unpack(Args)))
+								end)
+							else
+								return _Event:Invoke(...)
+							end
 						end
 					end
 
 					for _, Info in GetProperties:Invoke() do
-						_Net[Info[1]] = Net.CreateProperty(Network, Info[1], Info[2])
+						_Net[Info[1]] = Net.CreateProperty(Network, Info[1], Info[2], ServicePromise)
 					end
 
 					for _, _Signal in GetSignals:Invoke() do
-						_Net[_Signal] = Net.CreateSignal(Network, _Signal)
+						_Net[_Signal] = Net.CreateSignal(Network, _Signal, ServicePromise)
 					end
 
 					_Net.Bridge = Network
@@ -605,13 +642,19 @@ return table.freeze({
 		end
 	end,
 
-	Start = function()
+	Start = function(Options: { ServicePromise: boolean?, Timeout: number? }?)
 		if Started then
 			return Promise.reject("Loader is already started.")
 		end
 
+		if Options and Options.ServicePromise ~= nil then
+			ServicePromise = Options.ServicePromise
+		end
+
 		local Nets = {}
 		local Temp = {}
+
+		local Timeout = if Options and Options.Timeout then Options.Timeout else 10
 
 		for Name, Module in Loaded do
 			if Module.Client then
@@ -644,7 +687,9 @@ return table.freeze({
 
 				if IsServer and Module.Client then
 					for Event, Callback in Module.Client do
-						if typeof(Callback) == "function" then
+						local typeOfCallback = typeof(Callback)
+
+						if typeOfCallback == "function" then
 							local _Event = _Net:CreateEvent(Event)
 
 							_Event:SetCallback(function(Player, ...)
@@ -652,11 +697,11 @@ return table.freeze({
 							end)
 
 							table.insert(ClientEvents, Event)
-						elseif typeof(Callback) == "userdata" and Callback == SignalFlag then
+						elseif typeOfCallback == "userdata" and Callback == SignalFlag then
 							Module.Client[Event] = Net.CreateSignal(_Net, Event)
 							table.insert(ClientSignals, Event)
 						elseif
-							typeof(Callback) == "table"
+							typeOfCallback == "table"
 							and typeof(Callback[1]) == "userdata"
 							and Callback[1] == PropertyFlag
 						then
@@ -683,7 +728,7 @@ return table.freeze({
 
 					repeat
 						task.wait()
-					until tick() - T > 10 or Module.__Initialized
+					until tick() - T > Timeout or Module.__Initialized
 
 					if not Module.__Initialized then
 						warn(`@Cardinal - module: {Name} took too long to initialize.`)
@@ -718,7 +763,7 @@ return table.freeze({
 
 							repeat
 								task.wait()
-							until tick() - T > 10 or Module.__Started
+							until tick() - T > Timeout or Module.__Started
 
 							if not Module.__Started then
 								warn(`@Cardinal - module: {Name} took too long to start.`)
@@ -825,12 +870,14 @@ return table.freeze({
 				end
 
 				local function CharacterAdded(Character: Instance, Player: Player)
+					local Name = Player.Name
+
 					if not Character:IsDescendantOf(workspace) then
-						while Player:IsDescendantOf(PlayerService) and not Character:IsDescendantOf(workspace) do
+						while PlayerService:FindFirstChild(Name) and not Character:IsDescendantOf(workspace) do
 							task.wait()
 						end
 
-						if not Player:IsDescendantOf(PlayerService) then
+						if not PlayerService:FindFirstChild(Name) then
 							return
 						end
 					end
@@ -838,12 +885,12 @@ return table.freeze({
 					local Start = tick()
 
 					if Character:IsA("Model") then
-						while not Character.PrimaryPart and tick() - Start < 10 do
+						while not Character.PrimaryPart and tick() - Start < Timeout do
 							task.wait()
 						end
 					end
 
-					if tick() - Start >= 10 then
+					if tick() - Start >= Timeout then
 						warn(
 							"Character's PrimaryPart took too long to be parented. Some code may not function as expected."
 						)
@@ -897,24 +944,49 @@ return table.freeze({
 						for Event: string, Log: { Packet } in EventLog do
 							for I = #Log, 1, -1 do
 								local Packet: Packet = Log[I]
+								
 								if not Packet then
 									continue
 								end
 
 								if not Packet.Sent then
 									if Event == "PlayerAdded" then
-										task.spawn(PlayerAdded, unpack(Packet.Args))
+										local Name = Packet.Args[1]
+										local Player = PlayerService:FindFirstChild(Name)
+										if not Player then
+											if IsStudio then
+												print("Player no longer exists: ", Name)
+											end
+											table.remove(Log, I)
+											continue
+										end
+										task.spawn(PlayerAdded, Player)
+										Player = nil
 									elseif Event == "CharacterAdded" then
-										task.spawn(CharacterAdded, unpack(Packet.Args))
+										local Character = Packet.Args[1]
+										local Name = Packet.Args[2]
+										local Player = PlayerService:FindFirstChild(Name)
+										if not Player then
+											if IsStudio then
+												print("Player no longer exists: ", Name)
+											end
+											table.remove(Log, I)
+											continue
+										end
+										task.spawn(CharacterAdded, Character, Player)
+										Player = nil
 									elseif Event == "PlayerRemoving" then
-										task.spawn(PlayerRemoving, unpack(Packet.Args))
+										local Player = Packet.Args[1]	
+										task.spawn(PlayerRemoving, Player)
+										Player = nil
 									end
+
 									Packet.Sent = true
-								else
 									table.remove(Log, I)
 								end
 							end
 						end
+						
 						task.wait()
 					end
 				end)
@@ -931,4 +1003,4 @@ return table.freeze({
 				return Promise.resolve("@Cardinal - Started")
 			end)
 	end,
-})
+}
