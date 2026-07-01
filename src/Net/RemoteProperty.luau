@@ -118,7 +118,7 @@ export type ClientRemoteProperty<T> = RemoteProperty<T> & {
 function RemoteProperty.new<T>(
 	Net: { CreateEvent: (self: unknown, string) -> unknown },
 	Name: string,
-	InitialValue: T,
+	_: T,
 	ServicePromise: boolean?
 )
 	local self = setmetatable({
@@ -169,7 +169,7 @@ end
 
 function ClientProperty:OnReady(): Promise | nil?
 	if self.ServicePromise then
-		return Promise.new(function(Resolve, Reject) 
+		return Promise.new(function(Resolve) 
 			if self._Ready then
 				Resolve()
 			else
