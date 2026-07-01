@@ -310,13 +310,23 @@ local function StepReplication()
         table.clear(Send.Instances)
     end
 end
+
 RunService.Heartbeat:Connect(StepReplication)
+
+local MAX_BUFFER_SIZE = 1e6
+
 Reliable.OnServerEvent:Connect(function(Player: Player, Buffer: buffer, Instances: {Instance})
 	RecieveCursor = 0
 	RecieveBuffer = Buffer
 	RecieveInstances = Instances
 	RecieveInstanceCursor = 0
 	local Size = buffer.len(RecieveBuffer)
+
+	if Size > MAX_BUFFER_SIZE then
+		warn("[Cardinal]: Received packet larger than the maximum buffer size, did you forget to set the maximum buffer size?")
+		return
+	end
+
 	while (RecieveCursor < Size) do
 		-- Read BLOCK: 1 bytes
 		local BLOCK_START = Read(1)
@@ -347,19 +357,25 @@ Reliable.OnServerEvent:Connect(function(Player: Player, Buffer: buffer, Instance
 		end
 	end
 end)
+
 Unreliable.OnServerEvent:Connect(function(Player: Player, Buffer: buffer, Instances: {Instance})
 	RecieveCursor = 0
 	RecieveBuffer = Buffer
 	RecieveInstances = Instances
 	RecieveInstanceCursor = 0
 	local Size = buffer.len(RecieveBuffer)
+
+	if Size > MAX_BUFFER_SIZE then
+		warn("[Cardinal]: Received packet larger than the maximum buffer size, did you forget to set the maximum buffer size?")
+		return
+	end
+
 	while (RecieveCursor < Size) do
 		-- Read BLOCK: 1 bytes
 		local BLOCK_START = Read(1)
 		local Index = buffer.readu8(RecieveBuffer, BLOCK_START + 0)
 	end
 end)
-
 
 local Returns = table.freeze({
 	StepReplication = StepReplication,

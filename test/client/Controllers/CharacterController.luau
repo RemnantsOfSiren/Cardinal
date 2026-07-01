@@ -20,8 +20,10 @@ function CharacterController:OnLocalPlayer(Player)
 	CharacterService.TestSignal:Connect(function(...)
 		print("Test signal received: ", ...)
 	end)
+	
+	local t = table.create(10000, "help me please, this needs to overflow")
 
-	CharacterService:ThisShouldWork():andThen(function(Result)
+	CharacterService:ThisShouldWork(t):andThen(function(Result)
 		if Result.Success then
 			print("This should work: ", Result.Message)
 		else

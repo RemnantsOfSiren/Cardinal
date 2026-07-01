@@ -12,6 +12,18 @@
 ]]
 
 --[=[
+	@prop Name? string
+	@within Service
+	@within Controller
+	Name of the Service/Controller.
+]=]
+--[=[
+	@prop Priority? number
+	@within Service
+	@within Controller
+	Priority of the Service/Controller.
+]=]
+--[=[
 	@prop Client? {[string]: (self: self, Player: Player, ...) -> nil | () -> nil } | nil
 	@within Service
 ]=]
@@ -247,13 +259,20 @@ type Callback = (Instance) -> () -> nil
 
 local RunService = game:GetService("RunService")
 local PlayerService = game:GetService("Players")
-local Players = game:GetService("Players")
 
-local Trove = require(script.Parent.Trove) :: { [any]: any }
-local Signal = require(script.Parent.Signal) :: { [any]: any }
-local Promise = require(script.Parent.Promise) :: { [any]: any }
+local Source = script.Parent :: Instance
 
-local Net = require(script.Net) :: any
+local Trove = require(Source:WaitForChild("Trove")) :: { [any]: any }
+local Signal = require(Source:WaitForChild("Signal")) :: { [any]: any }
+local Promise = require(Source:WaitForChild("Promise")) :: { [any]: any }
+
+type Promise<T> = {
+	catch: (self: Promise<T>, Callback: (any) -> any) -> Promise<T>,
+	andThen: (self: Promise<T>, Callback: (T) -> any) -> Promise<T>,
+	finally: (self: Promise<T>, Callback: () -> any) -> Promise<T>,
+}
+
+local Net = require(script.Net)
 
 type Packet = {
 	Args: { [any]: any },
@@ -277,11 +296,11 @@ local function CreatePacket(...): Packet
 	}
 end
 
-local function OnCharacterAdded(Character, Name)
+local function OnCharacterAdded(Character: Model, Name: string)
 	table.insert(EventLog["CharacterAdded"], CreatePacket(Character, Name))
 end
 
-local function OnPlayerAdded(Player)
+local function OnPlayerAdded(Player: Player)
 	local Name = Player.Name
 
 	table.insert(EventLog["PlayerAdded"], CreatePacket(Name))
@@ -347,7 +366,7 @@ local function Load(Module: ModuleScript)
 			end
 		end
 	else
-		error(`@Cardinal - Error Loading {Name}: ` .. Error)
+		error(`@Cardinal - Error Loading {Name}: ` .. Error :: string)
 	end
 end
 
@@ -360,40 +379,56 @@ local function IsAnExclusion(Exclusions: { string }, Name: string): boolean
 	return false
 end
 
-export type Service = {
-	OnInit: () -> ()?,
-	OnStart: () -> ()?,
-	OnPlayerAdded: (Player: Player) -> ()?,
-	OnPlayerRemoving: (Player: Player) -> ()?,
-	OnCharacterAdded: (Character: Model, Player: Player) -> ()?,
-	OnStepped: (StartTime: number, DeltaTime: number) -> ()?,
-	OnHeartbeat: (DeltaTime: number) -> ()?,
-	OnPreAnimation: (DeltaTime: number) -> ()?,
-	OnPreSimulation: (DeltaTime: number) -> ()?,
-	OnPostAnimation: (DeltaTime: number) -> ()?,
-	OnPostSimulation: (DeltaTime: number) -> ()?,
-	Client: unknown?,
+type Runnable = {
+	Name: string?,
+	Priority: number?,
+	_Started: boolean?,
+	_Initialized: boolean?,
+	OnInit: (self: Runnable) -> ()?,
+	OnStart: (self: Runnable) -> ()?,
+	
+	OnStepped: (self: Runnable, StartTime: number, DeltaTime: number) -> ()?,
+	OnHeartbeat: (self: Runnable, DeltaTime: number) -> ()?,
+	
+	OnPreSimulation: (self: Runnable, DeltaTime: number) -> ()?,
+	OnPostSimulation: (self: Runnable, DeltaTime: number) -> ()?,
+	
+	OnPreAnimation: (self: Runnable, DeltaTime: number) -> ()?,
+	OnPostAnimation: (self: Runnable, DeltaTime: number) -> ()?,
+	
+	OnPlayerAdded: (self: Runnable, Player: Player) -> ()?,
+	OnPlayerRemoving: (self: Runnable, Player: Player) -> ()?,
+	OnCharacterAdded: (self: Runnable, Character: Model, Player: Player) -> ()?,
 }
 
-export type Controller = {
+
+export type ServerSignal = Net.ServerSignal
+export type ServerProperty<T> = Net.ServerProperty<T>
+
+export type ClientSignal = Net.ClientSignal
+export type ClientProperty<T> = Net.ClientProperty<T>
+
+export type Service = Runnable & {
+	Client: { [string]: any }?,
+}
+
+export type Controller = Runnable & {
 	OnInit: () -> ()?,
 	OnStart: () -> ()?,
-	OnPlayerAdded: (Player: Player) -> ()?,
-	OnPlayerRemoving: (Player: Player) -> ()?,
-	OnCharacterAdded: (Character: Model, Player: Player) -> ()?,
 	OnLocalPlayer: (Player: Player) -> ()?,
-	OnLocalCharacter: (Character: Model, Player: Player) -> ()?,
-	OnStepped: (StartTime: number, DeltaTime: number) -> ()?,
 	OnRenderStepped: (DeltaTime: number) -> ()?,
-	OnHeartbeat: (DeltaTime: number) -> ()?,
-	OnPreAnimation: (DeltaTime: number) -> ()?,
-	OnPreSimulation: (DeltaTime: number) -> ()?,
-	OnPostAnimation: (DeltaTime: number) -> ()?,
-	OnPostSimulation: (DeltaTime: number) -> ()?,
+	OnLocalCharacter: (Character: Model, Player: Player) -> ()?,
 }
 
-local SignalFlag = newproxy(false)
-local PropertyFlag = newproxy(false)
+local SignalMarker = newproxy(true)
+getmetatable(SignalMarker).__tostring = function()
+	return "SIGNAL_MARKER"
+end
+
+local PropertyMarker = newproxy(true)
+getmetatable(PropertyMarker).__tostring = function()
+	return "PROPERTY_MARKER"
+end
 
 --[=[
 	@function Load
@@ -435,14 +470,14 @@ local PropertyFlag = newproxy(false)
 --[=[
 	@function CreateSignal
 	@within Cardinal
-	@return SignalFlag
+	@return SignalMarker
 	Flags that a new "Remote" Signal should be made
 ]=]
 
 --[=[
 	@function CreateProperty
 	@within Cardinal
-	@return SignalFlag
+	@return PropertyMarker
 	Flags that a new "Remote" Signal should be made
 ]=]
 
@@ -493,18 +528,19 @@ local ServicePromise = false
 
 return {
 	Player = if not IsServer then PlayerService.LocalPlayer else nil,
-
+	
 	AddCustomLifecycle = function(Name: string, _Signal: any)
 		if CustomEvents[Name] then
 			return Promise.reject("Custom lifecycle already exists.")
 		end
-
+		
 		CustomEvents[Name] = _Signal
 		
 		if Started then
 			Cleaner:Connect(_Signal, function(...) 
-				for _, Module in pairs(Loaded) do
-					local Lifecycle = Module["On" .. Name] or Module[Name]
+				for _, Module in pairs(Loaded :: { [any]: any }) do
+					local Lifecycle = Module[`On{Name}`] or Module[Name]
+
 					if Lifecycle and typeof(Lifecycle) == "function" then
 						task.spawn(Lifecycle, Module, ...)
 					end
@@ -513,19 +549,19 @@ return {
 		end
 	end,
 
-	CreateSignal = if IsServer then function()
-		return SignalFlag
+	CreateSignal = (if IsServer then function()
+		return SignalMarker
 	end else function()
 		warn("@Cardinal - CreateSignal can only be called on the Server.")
 		return nil
-	end,
+	end) :: () -> Net.ServerSignal?,
 
-	CreateProperty = if IsServer then function(InitialValue: any)
-		return { PropertyFlag, InitialValue }
+	CreateProperty = (if IsServer then function(InitialValue: any)
+		return { PropertyMarker, InitialValue } :: any -- ignore this linter issue as this point in memory gets overridden later
 	end else function()
 		warn("@Cardinal - CreateProperty can only be called on the Server.")
 		return nil
-	end,
+	end) :: (InitialValue: any) -> Net.ServerProperty<any>?,
 
 	OnStart = function()
 		if Started then
@@ -583,13 +619,13 @@ return {
 		return Promise.resolve("@Cardinal - Loading Completed")
 	end,
 
-	GetService = function(Name: string)
+	GetService = function(Name: string): { [string]: any }?
 		if IsServer then
 			if IsStudio then
 				warn("GetService can only be called on the Client.")
 			end
 
-			return
+			return nil
 		end
 
 		if CachedNets then
@@ -602,7 +638,7 @@ return {
 				local Nets = NetworkEvents.Value:split(":")
 
 				if table.find(Nets, Name) then
-					local _Net = {}
+					local _Net: { [any]: any } = {}
 
 					local Network = Net.new(Name) :: { CreateEvent: (any, string) -> { [any]: any } }
 
@@ -616,7 +652,7 @@ return {
 						_Net[Event] = function(_, ...)
 							if ServicePromise then
 								local Args = { ... }
-								return Promise.new(function(Resolve, Reject)
+								return Promise.new(function(Resolve)
 									return Resolve(_Event:Invoke(unpack(Args)))
 								end)
 							else
@@ -630,16 +666,18 @@ return {
 					end
 
 					for _, _Signal in GetSignals:Invoke() do
-						_Net[_Signal] = Net.CreateSignal(Network, _Signal, ServicePromise)
+						_Net[_Signal] = Net.CreateSignal(Network, _Signal)
 					end
 
 					_Net.Bridge = Network
 
 					CachedNets[Name] = _Net
-					return _Net
+					return _Net :: any
 				end
 			end
 		end
+
+		return nil
 	end,
 
 	Start = function(Options: { ServicePromise: boolean?, Timeout: number? }?)
@@ -652,16 +690,33 @@ return {
 		end
 
 		local Nets = {}
-		local Temp = {}
-
+		local Temp: { any } = {}
 		local Timeout = if Options and Options.Timeout then Options.Timeout else 10
 
-		for Name, Module in Loaded do
-			if Module.Client then
-				Module.Client.Server = Module
+		local Modules = {} :: { Controller | Service }
 
-				local _Net = Net.new(Module.Name or Name) :: { CreateEvent: (any, string) -> { [any]: any } }
-				Module.Net = _Net
+		for Name, Module in pairs(Loaded) do
+			if typeof(Module) == "table" and not Module.Name then
+				Module.Name = Name
+			end
+
+			table.insert(Modules, Module)
+		end
+
+		table.sort(Modules, function(A: Controller | Service, B: Controller | Service)
+			return (A.Priority or 0) < (B.Priority or 0)
+		end)
+
+		for _, Module in pairs(Modules) do
+			local HasClient = typeof(Module) == "table" and (Module :: Service).Client ~= nil
+			local Client = (Module :: Service).Client :: any
+
+			if HasClient then
+				local Name = (Module :: Service).Name :: string
+				Client.Server = Module
+
+				local _Net = Net.new(Name) :: { CreateEvent: (any, string) -> { [any]: any } }
+				(Module :: any).Net = _Net
 
 				local ClientEvents = {}
 				local ClientSignals = {}
@@ -685,52 +740,54 @@ return {
 					return ClientSignals
 				end)
 
-				if IsServer and Module.Client then
-					for Event, Callback in Module.Client do
+				if IsServer and Client then
+					for Event, Callback in Client do
 						local typeOfCallback = typeof(Callback)
 
 						if typeOfCallback == "function" then
 							local _Event = _Net:CreateEvent(Event)
 
 							_Event:SetCallback(function(Player, ...)
-								return Callback(Module.Client, Player, ...)
+								return Callback(Client, Player, ...)
 							end)
 
 							table.insert(ClientEvents, Event)
-						elseif typeOfCallback == "userdata" and Callback == SignalFlag then
-							Module.Client[Event] = Net.CreateSignal(_Net, Event)
+						elseif typeOfCallback == "userdata" and Callback == SignalMarker then
+							Client[Event] = Net.CreateSignal(_Net, Event)
 							table.insert(ClientSignals, Event)
 						elseif
 							typeOfCallback == "table"
 							and typeof(Callback[1]) == "userdata"
-							and Callback[1] == PropertyFlag
+							and Callback[1] == PropertyMarker
 						then
 							local InitialValue = Callback[2]
-							Module.Client[Event] = Net.CreateProperty(_Net, Event, InitialValue)
+							Client[Event] = Net.CreateProperty(_Net, Event, InitialValue)
 							table.insert(ClientProperties, { Event, InitialValue })
 						end
 					end
-				elseif not IsServer and Module.Client then
-					warn(`@Cardinal - Creating Client Exposed functionality should be handled on the Server. Please remove .Client from {Name} Controller.`)
+				elseif not IsServer and Client then
+					warn(`@Cardinal - Creating Client Exposed functionality should be handled on the Server. Please remove .Client from {Module.Name} Controller.`)
 				end
 
-				table.insert(Nets, Name)
+				table.insert(Nets, Module.Name)
 			end
 		end
 
-		for Name, Module in pairs(Loaded) do
-			local Init = Module.OnInit or Module.Init
+		for _, Module: Runnable in pairs(Modules) do
+			local Name = Module.Name
+			local Init = Module.OnInit :: (self: Runnable) -> ()?
 
 			if Init then
-				Module.__Initialized = false
+				(Module :: Runnable)._Initialized = false
+				
 				Cleaner:Add(task.spawn(function()
 					local T = tick()
 
 					repeat
 						task.wait()
-					until tick() - T > Timeout or Module.__Initialized
+					until tick() - T > Timeout or Module._Initialized
 
-					if not Module.__Initialized then
+					if not Module._Initialized then
 						warn(`@Cardinal - module: {Name} took too long to initialize.`)
 					end
 				end), true)
@@ -740,9 +797,9 @@ return {
 					table.insert(
 						Temp,
 						Promise.try(function()
-							Init(Module)
-							Module.__Initialized = true
-						end)
+							Init(Module :: Runnable)
+							Module._Initialized = true
+						end) :: any
 					)
 					debug.profileend()
 				end), true)
@@ -753,19 +810,20 @@ return {
 			:andThen(function()
 				table.clear(Temp)
 
-				for Name, Module in pairs(Loaded) do
-					local Start = Module.OnStart or Module.Start
+				for _, Module: Runnable in pairs(Modules) do
+					local Name = Module.Name
+					local Start = Module.OnStart
 
 					if Start then
-						Module.__Started = false
+						Module._Started = false
 						Cleaner:Add(task.spawn(function()
 							local T = tick()
 
 							repeat
 								task.wait()
-							until tick() - T > Timeout or Module.__Started
+							until tick() - T > Timeout or Module._Started
 
-							if not Module.__Started then
+							if not Module._Started then
 								warn(`@Cardinal - module: {Name} took too long to start.`)
 							end
 						end), true)
@@ -776,8 +834,8 @@ return {
 								Temp,
 								Promise.try(function()
 									Start(Module)
-									Module.__Started = true
-								end)
+									Module._Started = true
+								end) :: any
 							)
 							debug.profileend()
 						end), true)
@@ -785,7 +843,11 @@ return {
 				end
 			end)
 			:finally(function()
-				local Events = {
+				local Events: {
+					RunService: { [string]: { (...any) -> () } },
+					PlayerService: { [string]: { (...any) -> () } },
+					CustomEvents: { [string]: { (...any) -> () } },
+				} = {
 					RunService = {},
 					PlayerService = {
 						PlayerAdded = {},
@@ -819,15 +881,15 @@ return {
 						until Module.__Started
 					end
 
-					for Function, Callback in pairs(Module) do
+					for Function: string, Callback: any in pairs(Module :: { [string]: any }) do
 						if Function == "Name" or typeof(Callback) ~= "function" then
 							continue
 						end
 
-						local Event = string.gsub(Function, "On", "")
+						local Event: string = string.gsub(Function, "On", "")
 
 						local Success = pcall(function()
-							local C = RunService[Event]:Once(function() end)
+							local C = (RunService :: any)[Event]:Once(function() end)
 							if C then
 								C:Disconnect()
 							end
@@ -839,24 +901,24 @@ return {
 							end
 
 							table.insert(Events.RunService[Event], function(...)
-								Callback(Module, ...)
+								(Callback :: (any, ...any)->())(Module, ...)
 							end)
 						elseif Events.PlayerService[Event] then
 							table.insert(Events.PlayerService[Event], function(...)
-								Callback(Module, ...)
+								(Callback :: (any, ...any)->())(Module, ...)
 							end)
 						elseif CustomEvents[Event] then
 							table.insert(Events.CustomEvents[Event], function(...)
-								Callback(Module, ...)
+								(Callback :: (any, ...any)->())(Module, ...)
 							end)
 						end
 					end
 				end
 
 				for Event, Callbacks in pairs(Events.RunService) do
-					Cleaner:Connect(RunService[Event], function(...)
+					Cleaner:Connect((RunService :: any)[Event], function(...)
 						for _, Callback in pairs(Callbacks) do
-							task.spawn(Callback, ...)
+							task.spawn((Callback :: (...any)->()), ...)
 						end
 					end)
 				end
@@ -864,7 +926,7 @@ return {
 				for Event, _Signal in pairs(CustomEvents) do
 					Cleaner:Connect(_Signal, function(...)
 						for _, Callback in pairs(Events.CustomEvents[Event]) do
-							task.spawn(Callback, ...)
+							task.spawn((Callback :: (...any)->()), ...)
 						end
 					end)
 				end
@@ -898,17 +960,17 @@ return {
 
 					if #Events.PlayerService.CharacterAdded > 0 then
 						for _, Callback in pairs(Events.PlayerService.CharacterAdded) do
-							task.spawn(Callback, Character, Player)
+							task.spawn((Callback :: (...any)->()), Character, Player)
 						end
 					end
-
+					
 					if
 						RunService:IsClient()
 						and Player == PlayerService.LocalPlayer
 						and #Events.PlayerService.LocalCharacter > 0
 					then
 						for _, Callback in pairs(Events.PlayerService.LocalCharacter) do
-							task.spawn(Callback, Character, Player)
+							task.spawn((Callback :: (...any)->()), Character, Player)
 						end
 					end
 				end
@@ -916,7 +978,7 @@ return {
 				local function PlayerAdded(Player: Player)
 					if #Events.PlayerService.PlayerAdded > 0 then
 						for _, Callback in pairs(Events.PlayerService.PlayerAdded) do
-							task.spawn(Callback, Player)
+							task.spawn((Callback :: (...any)->()), Player)
 						end
 					end
 
@@ -926,7 +988,7 @@ return {
 						and #Events.PlayerService.LocalPlayer > 0
 					then
 						for _, Callback in pairs(Events.PlayerService.LocalPlayer) do
-							task.spawn(Callback, Player)
+							task.spawn((Callback :: (...any)->()), Player)
 						end
 					end
 				end
@@ -934,7 +996,7 @@ return {
 				local function PlayerRemoving(Player)
 					if #Events.PlayerService.PlayerRemoving then
 						for _, Callback in pairs(Events.PlayerService.PlayerRemoving) do
-							task.spawn(Callback, Player)
+							task.spawn((Callback :: (...any)->()), Player)
 						end
 					end
 				end
@@ -960,7 +1022,7 @@ return {
 											table.remove(Log, I)
 											continue
 										end
-										task.spawn(PlayerAdded, Player)
+										task.spawn(PlayerAdded, Player :: Player)
 										Player = nil
 									elseif Event == "CharacterAdded" then
 										local Character = Packet.Args[1]
@@ -973,7 +1035,7 @@ return {
 											table.remove(Log, I)
 											continue
 										end
-										task.spawn(CharacterAdded, Character, Player)
+										task.spawn(CharacterAdded, Character, Player :: Player)
 										Player = nil
 									elseif Event == "PlayerRemoving" then
 										local Player = Packet.Args[1]	
@@ -1003,4 +1065,12 @@ return {
 				return Promise.resolve("@Cardinal - Started")
 			end)
 	end,
+} :: {
+	Load: (Parent: Instance, LoadOptions: LoadOptions?) -> Promise<string>,
+	Start: (Options: { ServicePromise: boolean?, Timeout: number? }?) -> Promise<string>,
+	OnStart: () -> Promise<nil>,
+	GetService: (Name: string) -> { [string]: any }?,
+	CreateSignal: () -> Net.ServerSignal?,
+	CreateProperty: (InitialValue: any) -> Net.ServerProperty<any>?,
+	AddCustomLifecycle: (Name: string, Signal: any) -> nil,
 }

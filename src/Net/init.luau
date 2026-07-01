@@ -1,3 +1,4 @@
+--!optimize 2
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
@@ -8,10 +9,14 @@ local Net = IsServer and require(script.Server) or require(script.Client)
 local RemoteSignal = require(script.RemoteSignal)
 local RemoteProperty = require(script.RemoteProperty)
 
+local BlazeSentry = require(script.Parent.Parent.BlazeSentry) :: { [any]: any }
+
+local Dynamic = BlazeSentry.dynamic
+
 local function MakePacket(Bridge: string, Name: string, Args: { any })
     return {
         Net = Bridge,
-        Args = Args,
+        Args = Dynamic.serialize(Args),
         Event = Name,
     }
 end
@@ -38,6 +43,7 @@ function Event:Fire(...)
     end
 
     local Packet = MakePacket(self.Bridge, self.Name, Args)
+
     if IsServer then
         Net.ClientEvent.Fire(Player, Packet)
     else
@@ -63,7 +69,7 @@ function Event:FireAllExcept(List: { Player } | Player, ...)
                 table.remove(PlayersInGame, I)
             end
         end
-        self:FireList(PlayersInGame, { ... })
+        self:FireList(PlayersInGame,  ...)
     end
 end
 
@@ -166,8 +172,10 @@ if IsServer then
 
         local _Event = _Bridge._Events[EventName]
 
-        if _Event and _Event._Invoke then
-            return _Event._Invoke(Player, unpack(Args))
+        local _Args = Dynamic.deserialize(Args)
+
+        if _Event and _Event._Invoke and _Args then
+            return _Event._Invoke(Player, unpack(_Args))
         end
 
         return nil
@@ -186,9 +194,11 @@ if IsServer then
 
         local _Event = _Bridge._Events[EventName]
 
+        local _Args = Dynamic.deserialize(Args)
+
         if _Event and #_Event._Connections > 0 then
             for _, Callback in pairs(_Event._Connections) do
-                task.spawn(Callback, Player, unpack(Args))
+                task.spawn(Callback, Player, unpack(_Args))
             end
         end
     end)
@@ -201,21 +211,32 @@ else
         local _Bridge = Bridges[BridgeName]
 
         if not _Bridge then
-            return {}
+            return
         end
 
         local _Event = _Bridge._Events[EventName]
+        local _Args = Dynamic.deserialize(Args)
 
         if _Event and #_Event._Connections > 0 then
             for _, Callback in pairs(_Event._Connections) do
-                task.spawn(Callback, unpack(Args))
+                task.spawn(Callback, unpack(_Args))
             end
         end
     end)
 end
 
+export type ServerSignal = RemoteSignal.ServerRemoteSignal
+export type ClientSignal = RemoteSignal.ClientRemoteSignal
+
+export type ServerProperty<T> = RemoteProperty.ServerRemoteProperty<T>
+export type ClientProperty<T> = RemoteProperty.ClientRemoteProperty<T>
+
 return table.freeze({
     new = Bridge.new,
-	CreateSignal = RemoteSignal.new,
-	CreateProperty = RemoteProperty.new,
+	CreateSignal = (RunService:IsServer() and RemoteSignal.Server or RemoteSignal.Client) :: (
+		(Net: any, Name: string) -> ServerSignal | ClientSignal
+	),
+	CreateProperty = (RunService:IsServer() and RemoteProperty.Server or RemoteProperty.Client) :: (
+		<T>(Net: any, Name: string, InitialValue: T, ServicePromise: boolean?) -> ServerProperty<T> | ClientProperty<T>
+	),
 })
