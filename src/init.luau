@@ -263,17 +263,16 @@ Services
 local RunService = game:GetService("RunService")
 local PlayerService = game:GetService("Players")
 
-local Source = script.Parent :: Instance
 
 --[[
 ================================================================================
 Dependencies
 ================================================================================
 ]]
-local Net = require(script.Net)
-local Trove = require(Source:WaitForChild("Trove")) :: { [any]: any }
-local Signal = require(Source:WaitForChild("Signal")) :: { [any]: any }
-local Promise = require(Source:WaitForChild("Promise")) :: { [any]: any }
+local Net = require("@self/Net") :: { [any]: any }
+local Trove = require("./Trove") :: { [any]: any }
+local Signal = require("./Signal") :: { [any]: any }
+local Promise = require("./Promise") :: { [any]: any }
 
 --[[
 ================================================================================
