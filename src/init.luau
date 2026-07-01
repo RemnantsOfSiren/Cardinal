@@ -255,29 +255,96 @@
 	```
 ]=]
 
-type Callback = (Instance) -> () -> nil
-
+--[[
+================================================================================
+Services
+================================================================================
+]]
 local RunService = game:GetService("RunService")
 local PlayerService = game:GetService("Players")
 
 local Source = script.Parent :: Instance
 
+--[[
+================================================================================
+Dependencies
+================================================================================
+]]
+local Net = require(script.Net)
 local Trove = require(Source:WaitForChild("Trove")) :: { [any]: any }
 local Signal = require(Source:WaitForChild("Signal")) :: { [any]: any }
 local Promise = require(Source:WaitForChild("Promise")) :: { [any]: any }
 
+--[[
+================================================================================
+Types
+================================================================================
+]]
 type Promise<T> = {
 	catch: (self: Promise<T>, Callback: (any) -> any) -> Promise<T>,
 	andThen: (self: Promise<T>, Callback: (T) -> any) -> Promise<T>,
 	finally: (self: Promise<T>, Callback: () -> any) -> Promise<T>,
 }
 
-local Net = require(script.Net)
-
 type Packet = {
 	Args: { [any]: any },
 	Sent: boolean,
 }
+
+export type LoadOptions = {
+  Deep: boolean?,
+  Predicate: ((ModuleScript) -> boolean)?,
+  Exclusions: { string }?,
+}
+
+type Runnable = {
+	Name: string?,
+	Priority: number?,
+	_Started: boolean?,
+	_Initialized: boolean?,
+	OnInit: (self: Runnable) -> ()?,
+	OnStart: (self: Runnable) -> ()?,
+	
+	OnStepped: (self: Runnable, StartTime: number, DeltaTime: number) -> ()?,
+	OnHeartbeat: (self: Runnable, DeltaTime: number) -> ()?,
+	
+	OnPreSimulation: (self: Runnable, DeltaTime: number) -> ()?,
+	OnPostSimulation: (self: Runnable, DeltaTime: number) -> ()?,
+	
+	OnPreAnimation: (self: Runnable, DeltaTime: number) -> ()?,
+	OnPostAnimation: (self: Runnable, DeltaTime: number) -> ()?,
+	
+	OnPlayerAdded: (self: Runnable, Player: Player) -> ()?,
+	OnPlayerRemoving: (self: Runnable, Player: Player) -> ()?,
+	OnCharacterAdded: (self: Runnable, Character: Model, Player: Player) -> ()?,
+}
+
+export type ServerSignal = Net.ServerSignal
+export type ServerProperty<T> = Net.ServerProperty<T>
+
+export type ClientSignal = Net.ClientSignal
+export type ClientProperty<T> = Net.ClientProperty<T>
+
+export type Service = Runnable & {
+	Client: { [string]: any }?,
+}
+
+export type Controller = Runnable & {
+	OnInit: () -> ()?,
+	OnStart: () -> ()?,
+	OnLocalPlayer: (Player: Player) -> ()?,
+	OnRenderStepped: (DeltaTime: number) -> ()?,
+	OnLocalCharacter: (Character: Model, Player: Player) -> ()?,
+}
+--[[
+================================================================================
+Variables
+================================================================================
+]]
+local IsServer = RunService:IsServer()
+local IsStudio = RunService:IsStudio()
+
+local Cleaner = Trove.new()
 
 local EventLog: { [string]: { Packet } } = {
 	["PlayerAdded"] = {},
@@ -285,10 +352,35 @@ local EventLog: { [string]: { Packet } } = {
 	["PlayerRemoving"] = {},
 }
 
-local Cleaner = Trove.new()
-
 local Connection = {}
 
+local Loaded = {}
+local Started = false
+local CachedNets = if not IsServer then {} else nil
+
+local SignalMarker = newproxy(true)
+getmetatable(SignalMarker).__tostring = function()
+	return "SIGNAL_MARKER"
+end
+
+local PropertyMarker = newproxy(true)
+getmetatable(PropertyMarker).__tostring = function()
+	return "PROPERTY_MARKER"
+end
+
+local BindToCloseSignal = if IsServer then Signal.new() else nil
+
+local CustomEvents = {
+  ["BindToClose"] = BindToCloseSignal,
+}
+
+local ServicePromise = false
+
+--[[
+================================================================================
+Private Methods
+================================================================================
+]]
 local function CreatePacket(...): Packet
 	return {
 		Args = { ... },
@@ -314,6 +406,40 @@ local function OnPlayerAdded(Player: Player)
 	end)
 end
 
+local function Load(Module: ModuleScript)
+  local Name = Module.Name
+
+  local Success, Error = pcall(function()
+    Module = require(Module) :: any
+  end)
+
+	if Success then
+		if typeof(Module) == "table" then
+			Loaded[Name] = Module
+		else
+			if IsStudio then
+				warn(`@Cardinal - Warning: {Name} module does not return a table. This has not been loaded.`)
+			end
+		end
+	else
+		error(`@Cardinal - Error Loading {Name}: ` .. Error :: string)
+	end
+end
+
+local function IsAnExclusion(Exclusions: { string }, Name: string): boolean
+  for _, Exclusion in pairs(Exclusions) do
+    if Name:lower():find(Exclusion:lower()) then
+      return true
+    end
+  end
+  return false
+end
+
+--[[
+================================================================================
+Initialize
+================================================================================
+]]
 Cleaner:Connect(PlayerService.PlayerAdded, OnPlayerAdded)
 
 for _, Player in PlayerService:GetPlayers() do
@@ -330,9 +456,6 @@ Cleaner:Connect(PlayerService.PlayerRemoving, function(Player)
 	end
 end)
 
-local IsServer = RunService:IsServer()
-local IsStudio = RunService:IsStudio()
-
 if not IsServer then
 	if workspace.StreamingEnabled and IsStudio then
 		-- Run this warning only in studio, to avoid from people who don't understand reporting this as an issue.
@@ -343,91 +466,15 @@ if not IsServer then
 		while not script:GetAttribute("ServerReady") do
 			task.wait()
 		end
-	end
-end
+  end
+else
+  game:BindToClose(function(Reason: Enum.CloseReason)
+    if BindToCloseSignal then
+      BindToCloseSignal:Fire(Reason)
+    end
 
-local Loaded = {}
-local Started = false
-local CachedNets = if not IsServer then {} else nil
-
-local function Load(Module: ModuleScript)
-	local Name = Module.Name
-
-	local Success, Error = pcall(function()
-		Module = require(Module) :: any
-	end)
-
-	if Success then
-		if typeof(Module) == "table" then
-			Loaded[Name] = Module
-		else
-			if IsStudio then
-				warn(`@Cardinal - Warning: {Name} module does not return a table. This has not been loaded.`)
-			end
-		end
-	else
-		error(`@Cardinal - Error Loading {Name}: ` .. Error :: string)
-	end
-end
-
-local function IsAnExclusion(Exclusions: { string }, Name: string): boolean
-	for _, Exclusion in pairs(Exclusions) do
-		if Name:lower():find(Exclusion:lower()) then
-			return true
-		end
-	end
-	return false
-end
-
-type Runnable = {
-	Name: string?,
-	Priority: number?,
-	_Started: boolean?,
-	_Initialized: boolean?,
-	OnInit: (self: Runnable) -> ()?,
-	OnStart: (self: Runnable) -> ()?,
-	
-	OnStepped: (self: Runnable, StartTime: number, DeltaTime: number) -> ()?,
-	OnHeartbeat: (self: Runnable, DeltaTime: number) -> ()?,
-	
-	OnPreSimulation: (self: Runnable, DeltaTime: number) -> ()?,
-	OnPostSimulation: (self: Runnable, DeltaTime: number) -> ()?,
-	
-	OnPreAnimation: (self: Runnable, DeltaTime: number) -> ()?,
-	OnPostAnimation: (self: Runnable, DeltaTime: number) -> ()?,
-	
-	OnPlayerAdded: (self: Runnable, Player: Player) -> ()?,
-	OnPlayerRemoving: (self: Runnable, Player: Player) -> ()?,
-	OnCharacterAdded: (self: Runnable, Character: Model, Player: Player) -> ()?,
-}
-
-
-export type ServerSignal = Net.ServerSignal
-export type ServerProperty<T> = Net.ServerProperty<T>
-
-export type ClientSignal = Net.ClientSignal
-export type ClientProperty<T> = Net.ClientProperty<T>
-
-export type Service = Runnable & {
-	Client: { [string]: any }?,
-}
-
-export type Controller = Runnable & {
-	OnInit: () -> ()?,
-	OnStart: () -> ()?,
-	OnLocalPlayer: (Player: Player) -> ()?,
-	OnRenderStepped: (DeltaTime: number) -> ()?,
-	OnLocalCharacter: (Character: Model, Player: Player) -> ()?,
-}
-
-local SignalMarker = newproxy(true)
-getmetatable(SignalMarker).__tostring = function()
-	return "SIGNAL_MARKER"
-end
-
-local PropertyMarker = newproxy(true)
-getmetatable(PropertyMarker).__tostring = function()
-	return "PROPERTY_MARKER"
+    Cleaner:Destroy()
+  end)
 end
 
 --[=[
@@ -502,30 +549,11 @@ end
 	The main driver functions for Cardinal
 ]=]
 
-export type LoadOptions = {
-	Deep: boolean?,
-	Predicate: ((ModuleScript) -> boolean)?,
-	Exclusions: { string }?,
-}
-
-local BindToCloseSignal = if IsServer then Signal.new() else nil
-
-local CustomEvents = {
-	["BindToClose"] = BindToCloseSignal,
-}
-
-if IsServer then
-	game:BindToClose(function(Reason: Enum.CloseReason)
-		if BindToCloseSignal then
-			BindToCloseSignal:Fire(Reason)
-		end
-
-		Cleaner:Destroy()
-	end)
-end
-
-local ServicePromise = false
-
+--[[
+================================================================================
+Return
+================================================================================
+]]
 return {
 	Player = if not IsServer then PlayerService.LocalPlayer else nil,
 	
