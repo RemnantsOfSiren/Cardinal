@@ -269,7 +269,7 @@ local PlayerService = game:GetService("Players")
 Dependencies
 ================================================================================
 ]]
-local Net = require("@self/Net") :: { [any]: any }
+local Net = require("@self/Net")
 local Trove = require("./Trove") :: { [any]: any }
 local Signal = require("./Signal") :: { [any]: any }
 local Promise = require("./Promise") :: { [any]: any }
