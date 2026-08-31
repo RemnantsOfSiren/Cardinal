@@ -93,12 +93,15 @@ RemoteProperty.__index = RemoteProperty
 type Trove = typeof(Trove.new())
 type Signal = typeof(Signal.new())
 
-type RemoteProperty<T> = typeof(setmetatable({} :: {
-	Event: Signal,
-	Cleaner: Trove,
-	Changed: Signal,
-	ServicePromise: boolean,
-}, RemoteProperty))
+type RemoteProperty<T> = typeof(setmetatable(
+	{} :: {
+		Event: Signal,
+		Cleaner: Trove,
+		Changed: Signal,
+		ServicePromise: boolean,
+	},
+	RemoteProperty
+))
 
 export type ServerRemoteProperty<T> = RemoteProperty<T> & {
 	Set: (self: ServerRemoteProperty<T>, Value: T) -> nil,
@@ -122,7 +125,7 @@ function RemoteProperty.new<T>(
 	ServicePromise: boolean?
 )
 	local self = setmetatable({
-		ServicePromise = if ServicePromise ~= nil then ServicePromise else false
+		ServicePromise = if ServicePromise ~= nil then ServicePromise else false,
 	}, RemoteProperty)
 
 	self.Cleaner = Trove.new()
@@ -169,7 +172,7 @@ end
 
 function ClientProperty:OnReady(): Promise | nil?
 	if self.ServicePromise then
-		return Promise.new(function(Resolve) 
+		return Promise.new(function(Resolve)
 			if self._Ready then
 				Resolve()
 			else
@@ -183,7 +186,7 @@ function ClientProperty:OnReady(): Promise | nil?
 	else
 		if not self._Ready then
 			local thread
-			
+
 			task.spawn(function()
 				repeat
 					task.wait()
@@ -301,7 +304,7 @@ function ServerProperty:Set(Value)
 			end
 
 			local Player = PlayerService:FindFirstChild(Name)
-			
+
 			if Player then
 				self.Values[Name] = if typeof(Value) == "table" then DeepCopy(Value :: { any }) else Value
 				self.Event:Fire(Player, self.Values[Name])
@@ -314,7 +317,7 @@ end
 function ServerProperty:Observe(Callback: (Player: Player, Value: any) -> ())
 	for Name, Value in pairs(self.Values) do
 		local Player = PlayerService:FindFirstChild(Name :: string) :: Player
-		
+
 		if Player then
 			task.spawn(Callback, Player, Value)
 		end

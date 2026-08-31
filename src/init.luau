@@ -263,7 +263,6 @@ Services
 local RunService = game:GetService("RunService")
 local PlayerService = game:GetService("Players")
 
-
 --[[
 ================================================================================
 Dependencies
@@ -291,9 +290,9 @@ type Packet = {
 }
 
 export type LoadOptions = {
-  Deep: boolean?,
-  Predicate: ((ModuleScript) -> boolean)?,
-  Exclusions: { string }?,
+	Deep: boolean?,
+	Predicate: ((ModuleScript) -> boolean)?,
+	Exclusions: { string }?,
 }
 
 type Runnable = {
@@ -303,16 +302,16 @@ type Runnable = {
 	_Initialized: boolean?,
 	OnInit: (self: Runnable) -> ()?,
 	OnStart: (self: Runnable) -> ()?,
-	
+
 	OnStepped: (self: Runnable, StartTime: number, DeltaTime: number) -> ()?,
 	OnHeartbeat: (self: Runnable, DeltaTime: number) -> ()?,
-	
+
 	OnPreSimulation: (self: Runnable, DeltaTime: number) -> ()?,
 	OnPostSimulation: (self: Runnable, DeltaTime: number) -> ()?,
-	
+
 	OnPreAnimation: (self: Runnable, DeltaTime: number) -> ()?,
 	OnPostAnimation: (self: Runnable, DeltaTime: number) -> ()?,
-	
+
 	OnPlayerAdded: (self: Runnable, Player: Player) -> ()?,
 	OnPlayerRemoving: (self: Runnable, Player: Player) -> ()?,
 	OnCharacterAdded: (self: Runnable, Character: Model, Player: Player) -> ()?,
@@ -370,7 +369,7 @@ end
 local BindToCloseSignal = if IsServer then Signal.new() else nil
 
 local CustomEvents = {
-  ["BindToClose"] = BindToCloseSignal,
+	["BindToClose"] = BindToCloseSignal,
 }
 
 local ServicePromise = false
@@ -406,11 +405,11 @@ local function OnPlayerAdded(Player: Player)
 end
 
 local function Load(Module: ModuleScript)
-  local Name = Module.Name
+	local Name = Module.Name
 
-  local Success, Error = pcall(function()
-    Module = require(Module) :: any
-  end)
+	local Success, Error = pcall(function()
+		Module = require(Module) :: any
+	end)
 
 	if Success then
 		if typeof(Module) == "table" then
@@ -426,12 +425,12 @@ local function Load(Module: ModuleScript)
 end
 
 local function IsAnExclusion(Exclusions: { string }, Name: string): boolean
-  for _, Exclusion in pairs(Exclusions) do
-    if Name:lower():find(Exclusion:lower()) then
-      return true
-    end
-  end
-  return false
+	for _, Exclusion in pairs(Exclusions) do
+		if Name:lower():find(Exclusion:lower()) then
+			return true
+		end
+	end
+	return false
 end
 
 --[[
@@ -465,15 +464,15 @@ if not IsServer then
 		while not script:GetAttribute("ServerReady") do
 			task.wait()
 		end
-  end
+	end
 else
-  game:BindToClose(function(Reason: Enum.CloseReason)
-    if BindToCloseSignal then
-      BindToCloseSignal:Fire(Reason)
-    end
+	game:BindToClose(function(Reason: Enum.CloseReason)
+		if BindToCloseSignal then
+			BindToCloseSignal:Fire(Reason)
+		end
 
-    Cleaner:Destroy()
-  end)
+		Cleaner:Destroy()
+	end)
 end
 
 --[=[
@@ -555,16 +554,16 @@ Return
 ]]
 return {
 	Player = if not IsServer then PlayerService.LocalPlayer else nil,
-	
+
 	AddCustomLifecycle = function(Name: string, _Signal: any)
 		if CustomEvents[Name] then
 			return Promise.reject("Custom lifecycle already exists.")
 		end
-		
+
 		CustomEvents[Name] = _Signal
-		
+
 		if Started then
-			Cleaner:Connect(_Signal, function(...) 
+			Cleaner:Connect(_Signal, function(...)
 				for _, Module in pairs(Loaded :: { [any]: any }) do
 					local Lifecycle = Module[`On{Name}`] or Module[Name]
 
@@ -576,19 +575,25 @@ return {
 		end
 	end,
 
-	CreateSignal = (if IsServer then function()
-		return SignalMarker
-	end else function()
-		warn("@Cardinal - CreateSignal can only be called on the Server.")
-		return nil
-	end) :: () -> Net.ServerSignal?,
+	CreateSignal = (if IsServer
+		then function()
+			return SignalMarker
+		end
+		else function()
+			warn("@Cardinal - CreateSignal can only be called on the Server.")
+			return nil
+		end) :: () -> Net.ServerSignal?,
 
-	CreateProperty = (if IsServer then function(InitialValue: any)
-		return { PropertyMarker, InitialValue } :: any -- ignore this linter issue as this point in memory gets overridden later
-	end else function()
-		warn("@Cardinal - CreateProperty can only be called on the Server.")
-		return nil
-	end) :: (InitialValue: any) -> Net.ServerProperty<any>?,
+	CreateProperty = (
+			if IsServer
+				then function(InitialValue: any)
+					return { PropertyMarker, InitialValue } :: any -- ignore this linter issue as this point in memory gets overridden later
+				end
+				else function()
+					warn("@Cardinal - CreateProperty can only be called on the Server.")
+					return nil
+				end
+		) :: (InitialValue: any) -> Net.ServerProperty<any>?,
 
 	OnStart = function()
 		if Started then
@@ -615,7 +620,7 @@ return {
 		local Deep = if LoadOptions and LoadOptions.Deep then LoadOptions.Deep else false
 		local Predicate = if LoadOptions and LoadOptions.Predicate then LoadOptions.Predicate else nil
 		local Exclusions = if LoadOptions and LoadOptions.Exclusions then LoadOptions.Exclusions else nil
-		
+
 		local Modules = {} :: { ModuleScript }
 
 		for _, Object in pairs(if Deep then Parent:GetDescendants() else Parent:GetChildren()) do
@@ -731,7 +736,7 @@ return {
 		end
 
 		table.sort(Modules, function(A: Controller | Service, B: Controller | Service)
-			return (A.Priority or 0) < (B.Priority or 0)
+			return (A.Priority or 0) > (B.Priority or 0)
 		end)
 
 		for _, Module in pairs(Modules) do
@@ -793,10 +798,12 @@ return {
 						end
 					end
 				elseif not IsServer and Client then
-					warn(`@Cardinal - Creating Client Exposed functionality should be handled on the Server. Please remove .Client from {Module.Name} Controller.`)
+					warn(
+						`@Cardinal - Creating Client Exposed functionality should be handled on the Server. Please remove .Client from {Name} Controller.`
+					)
 				end
 
-				table.insert(Nets, Module.Name)
+				table.insert(Nets, Name)
 			end
 		end
 
@@ -806,30 +813,36 @@ return {
 
 			if Init then
 				(Module :: Runnable)._Initialized = false
-				
-				Cleaner:Add(task.spawn(function()
-					local T = tick()
 
-					repeat
-						task.wait()
-					until tick() - T > Timeout or Module._Initialized
+				Cleaner:Add(
+					task.spawn(function()
+						local T = tick()
 
-					if not Module._Initialized then
-						warn(`@Cardinal - module: {Name} took too long to initialize.`)
-					end
-				end), true)
+						repeat
+							task.wait()
+						until tick() - T > Timeout or Module._Initialized
 
-				Cleaner:Add(task.spawn(function()
-					debug.profilebegin(`Initializing {Name}`)
-					table.insert(
-						Temp,
-						Promise.try(function()
-							Init(Module :: Runnable)
-							Module._Initialized = true
-						end) :: any
-					)
-					debug.profileend()
-				end), true)
+						if not Module._Initialized then
+							warn(`@Cardinal - module: {Name} took too long to initialize.`)
+						end
+					end),
+					true
+				)
+
+				Cleaner:Add(
+					task.spawn(function()
+						debug.profilebegin(`Initializing {Name}`)
+						table.insert(
+							Temp,
+							Promise.try(function()
+								Init(Module :: Runnable)
+								Module._Initialized = true
+							end) :: any
+						)
+						debug.profileend()
+					end),
+					true
+				)
 			end
 		end
 
@@ -843,29 +856,35 @@ return {
 
 					if Start then
 						Module._Started = false
-						Cleaner:Add(task.spawn(function()
-							local T = tick()
+						Cleaner:Add(
+							task.spawn(function()
+								local T = tick()
 
-							repeat
-								task.wait()
-							until tick() - T > Timeout or Module._Started
+								repeat
+									task.wait()
+								until tick() - T > Timeout or Module._Started
 
-							if not Module._Started then
-								warn(`@Cardinal - module: {Name} took too long to start.`)
-							end
-						end), true)
+								if not Module._Started then
+									warn(`@Cardinal - module: {Name} took too long to start.`)
+								end
+							end),
+							true
+						)
 
-						Cleaner:Add(task.spawn(function()
-							debug.profilebegin(`Starting {Name}`)
-							table.insert(
-								Temp,
-								Promise.try(function()
-									Start(Module)
-									Module._Started = true
-								end) :: any
-							)
-							debug.profileend()
-						end), true)
+						Cleaner:Add(
+							task.spawn(function()
+								debug.profilebegin(`Starting {Name}`)
+								table.insert(
+									Temp,
+									Promise.try(function()
+										Start(Module)
+										Module._Started = true
+									end) :: any
+								)
+								debug.profileend()
+							end),
+							true
+						)
 					end
 				end
 			end)
@@ -874,15 +893,16 @@ return {
 					RunService: { [string]: { (...any) -> () } },
 					PlayerService: { [string]: { (...any) -> () } },
 					CustomEvents: { [string]: { (...any) -> () } },
-				} = {
-					RunService = {},
-					PlayerService = {
-						PlayerAdded = {},
-						CharacterAdded = {},
-						PlayerRemoving = {},
-					},
-					CustomEvents = {},
-				}
+				} =
+					{
+						RunService = {},
+						PlayerService = {
+							PlayerAdded = {},
+							CharacterAdded = {},
+							PlayerRemoving = {},
+						},
+						CustomEvents = {},
+					}
 
 				for Event in pairs(CustomEvents) do
 					if not Events.CustomEvents[Event] then
@@ -928,15 +948,15 @@ return {
 							end
 
 							table.insert(Events.RunService[Event], function(...)
-								(Callback :: (any, ...any)->())(Module, ...)
+								(Callback :: (any, ...any) -> ())(Module, ...)
 							end)
 						elseif Events.PlayerService[Event] then
 							table.insert(Events.PlayerService[Event], function(...)
-								(Callback :: (any, ...any)->())(Module, ...)
+								(Callback :: (any, ...any) -> ())(Module, ...)
 							end)
 						elseif CustomEvents[Event] then
 							table.insert(Events.CustomEvents[Event], function(...)
-								(Callback :: (any, ...any)->())(Module, ...)
+								(Callback :: (any, ...any) -> ())(Module, ...)
 							end)
 						end
 					end
@@ -945,7 +965,7 @@ return {
 				for Event, Callbacks in pairs(Events.RunService) do
 					Cleaner:Connect((RunService :: any)[Event], function(...)
 						for _, Callback in pairs(Callbacks) do
-							task.spawn((Callback :: (...any)->()), ...)
+							task.spawn(Callback :: (...any) -> (), ...)
 						end
 					end)
 				end
@@ -953,7 +973,7 @@ return {
 				for Event, _Signal in pairs(CustomEvents) do
 					Cleaner:Connect(_Signal, function(...)
 						for _, Callback in pairs(Events.CustomEvents[Event]) do
-							task.spawn((Callback :: (...any)->()), ...)
+							task.spawn(Callback :: (...any) -> (), ...)
 						end
 					end)
 				end
@@ -987,17 +1007,17 @@ return {
 
 					if #Events.PlayerService.CharacterAdded > 0 then
 						for _, Callback in pairs(Events.PlayerService.CharacterAdded) do
-							task.spawn((Callback :: (...any)->()), Character, Player)
+							task.spawn(Callback :: (...any) -> (), Character, Player)
 						end
 					end
-					
+
 					if
 						RunService:IsClient()
 						and Player == PlayerService.LocalPlayer
 						and #Events.PlayerService.LocalCharacter > 0
 					then
 						for _, Callback in pairs(Events.PlayerService.LocalCharacter) do
-							task.spawn((Callback :: (...any)->()), Character, Player)
+							task.spawn(Callback :: (...any) -> (), Character, Player)
 						end
 					end
 				end
@@ -1005,7 +1025,7 @@ return {
 				local function PlayerAdded(Player: Player)
 					if #Events.PlayerService.PlayerAdded > 0 then
 						for _, Callback in pairs(Events.PlayerService.PlayerAdded) do
-							task.spawn((Callback :: (...any)->()), Player)
+							task.spawn(Callback :: (...any) -> (), Player)
 						end
 					end
 
@@ -1015,7 +1035,7 @@ return {
 						and #Events.PlayerService.LocalPlayer > 0
 					then
 						for _, Callback in pairs(Events.PlayerService.LocalPlayer) do
-							task.spawn((Callback :: (...any)->()), Player)
+							task.spawn(Callback :: (...any) -> (), Player)
 						end
 					end
 				end
@@ -1023,7 +1043,7 @@ return {
 				local function PlayerRemoving(Player)
 					if #Events.PlayerService.PlayerRemoving then
 						for _, Callback in pairs(Events.PlayerService.PlayerRemoving) do
-							task.spawn((Callback :: (...any)->()), Player)
+							task.spawn(Callback :: (...any) -> (), Player)
 						end
 					end
 				end
@@ -1033,7 +1053,7 @@ return {
 						for Event: string, Log: { Packet } in EventLog do
 							for I = #Log, 1, -1 do
 								local Packet: Packet = Log[I]
-								
+
 								if not Packet then
 									continue
 								end
@@ -1065,7 +1085,7 @@ return {
 										task.spawn(CharacterAdded, Character, Player :: Player)
 										Player = nil
 									elseif Event == "PlayerRemoving" then
-										local Player = Packet.Args[1]	
+										local Player = Packet.Args[1]
 										task.spawn(PlayerRemoving, Player)
 										Player = nil
 									end
@@ -1075,11 +1095,11 @@ return {
 								end
 							end
 						end
-						
+
 						task.wait()
 					end
 				end)
-				
+
 				if RunService:IsServer() then
 					local _Net = Instance.new("StringValue")
 					_Net.Name = "NetworkEvents"

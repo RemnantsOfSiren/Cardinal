@@ -153,9 +153,8 @@ local Queue: any = {
 
 Queue.Reliable[0] = table.create(256)
 Queue.Reliable[1] = table.create(256)
-export type optionalUnknownArray = {[number]: any}?
-export type packet = { Net: string, Event: string, Args: {[number]: any}? }
-local function ReadFUNCTION_DATA_RemoteFunction(): ({ Net: string, Event: string, Args: {[number]: any}? })
+export type packet = { Net: string, Event: string, Args: buffer? }
+local function ReadFUNCTION_DATA_RemoteFunction(): ({ Net: string, Event: string, Args: buffer? })
 	-- Read BLOCK: 5 bytes
 	local BLOCK_START = Read(5)
 	local Value = {} :: any
@@ -166,29 +165,31 @@ local function ReadFUNCTION_DATA_RemoteFunction(): ({ Net: string, Event: string
 	if buffer.readu8(RecieveBuffer, BLOCK_START + 4) == 1 then
 		-- Read BLOCK: 2 bytes
 		local BLOCK_START = Read(2)
-		Value.Args = {}
-		local Elements_2 = buffer.readu16(RecieveBuffer, BLOCK_START + 0)
-		for _ = 1, Elements_2 do
-			local OFFSET_0 = Read(2)
-			local Key_2 = buffer.readu16(RecieveBuffer, OFFSET_0)
-			RecieveInstanceCursor += 1
-			local Element_2 = RecieveInstances[RecieveInstanceCursor]
-			Value.Args[Key_2] = Element_2
-		end
+		Length = buffer.readu16(RecieveBuffer, BLOCK_START + 0)
+		Value.Args = buffer.create(Length)
+		buffer.copy(Value.Args, 0, RecieveBuffer, Read(Length), Length)
 	end
 	return Value
 end
 
-local function WriteFUNCTION_RETURN_RemoteFunction(Value: any, InvocationIdentifier: number): ()
-	-- Allocate BLOCK: 3 bytes
-	local BLOCK_START = Allocate(3)
+local function WriteFUNCTION_RETURN_RemoteFunction(Value: buffer?, InvocationIdentifier: number): ()
+	-- Allocate BLOCK: 4 bytes
+	local BLOCK_START = Allocate(4)
 	buffer.writeu8(SendBuffer, BLOCK_START + 0, 0)
 	buffer.writeu8(SendBuffer, BLOCK_START + 1, InvocationIdentifier)
 	buffer.writeu8(SendBuffer, BLOCK_START + 2, 1)
-	table.insert(SendInstances, if Value == nil then Null else Value)
+	buffer.writeu8(SendBuffer, BLOCK_START + 3, Value ~= nil and 1 or 0)
+	if Value ~= nil then
+		-- Allocate BLOCK: 2 bytes
+		local BLOCK_START = Allocate(2)
+		local Length = buffer.len(Value)
+		buffer.writeu16(SendBuffer, BLOCK_START + 0, Length)
+		Allocate(Length)
+		buffer.copy(SendBuffer, SendOffset, Value, 0, Length)
+	end
 end
 
-local function ReadEVENT_ServerEvent(): ({ Net: string, Event: string, Args: {[number]: any}? }?)
+local function ReadEVENT_ServerEvent(): ({ Net: string, Event: string, Args: buffer? }?)
 	-- Read BLOCK: 1 bytes
 	local BLOCK_START = Read(1)
 	local Value
@@ -203,21 +204,15 @@ local function ReadEVENT_ServerEvent(): ({ Net: string, Event: string, Args: {[n
 		if buffer.readu8(RecieveBuffer, BLOCK_START + 4) == 1 then
 			-- Read BLOCK: 2 bytes
 			local BLOCK_START = Read(2)
-			Value.Args = {}
-			local Elements_3 = buffer.readu16(RecieveBuffer, BLOCK_START + 0)
-			for _ = 1, Elements_3 do
-				local OFFSET_0 = Read(2)
-				local Key_3 = buffer.readu16(RecieveBuffer, OFFSET_0)
-				RecieveInstanceCursor += 1
-				local Element_3 = RecieveInstances[RecieveInstanceCursor]
-				Value.Args[Key_3] = Element_3
-			end
+			Length = buffer.readu16(RecieveBuffer, BLOCK_START + 0)
+			Value.Args = buffer.create(Length)
+			buffer.copy(Value.Args, 0, RecieveBuffer, Read(Length), Length)
 		end
 	end
 	return Value
 end
 
-local function WriteEVENT_ClientEvent(Value: { Net: string, Event: string, Args: {[number]: any}? }?): ()
+local function WriteEVENT_ClientEvent(Value: { Net: string, Event: string, Args: buffer? }?): ()
 	-- Allocate BLOCK: 2 bytes
 	local BLOCK_START = Allocate(2)
 	buffer.writeu8(SendBuffer, BLOCK_START + 0, 2)
@@ -237,14 +232,10 @@ local function WriteEVENT_ClientEvent(Value: { Net: string, Event: string, Args:
 		if Value.Args ~= nil then
 			-- Allocate BLOCK: 2 bytes
 			local BLOCK_START = Allocate(2)
-			local Elements_3 = 0
-			for Key_3, Element_3 in Value.Args do
-				Elements_3 += 1
-				local OFFSET_0 = Allocate(2)
-				buffer.writeu16(SendBuffer, OFFSET_0, Key_3)
-				table.insert(SendInstances, if Element_3 == nil then Null else Element_3)
-			end
-			buffer.writeu16(SendBuffer, BLOCK_START + 0, Elements_3)
+			local Length = buffer.len(Value.Args)
+			buffer.writeu16(SendBuffer, BLOCK_START + 0, Length)
+			Allocate(Length)
+			buffer.copy(SendBuffer, SendOffset, Value.Args, 0, Length)
 		end
 	end
 end
@@ -313,7 +304,7 @@ end
 
 RunService.Heartbeat:Connect(StepReplication)
 
-local MAX_BUFFER_SIZE = 1e6
+const MAX_BUFFER_SIZE = 1e8
 
 Reliable.OnServerEvent:Connect(function(Player: Player, Buffer: buffer, Instances: {Instance})
 	RecieveCursor = 0
@@ -321,10 +312,9 @@ Reliable.OnServerEvent:Connect(function(Player: Player, Buffer: buffer, Instance
 	RecieveInstances = Instances
 	RecieveInstanceCursor = 0
 	local Size = buffer.len(RecieveBuffer)
-
+	
 	if Size > MAX_BUFFER_SIZE then
-		warn("[Cardinal]: Received packet larger than the maximum buffer size, did you forget to set the maximum buffer size?")
-		return
+		return warn("[Blink]: Received buffer exceeded maximum size of 1MB, ignoring packet.")
 	end
 
 	while (RecieveCursor < Size) do
@@ -335,7 +325,7 @@ Reliable.OnServerEvent:Connect(function(Player: Player, Buffer: buffer, Instance
 			-- Read BLOCK: 1 bytes
 			local BLOCK_START = Read(1)
 			local InvocationIdentifier = buffer.readu8(RecieveBuffer, BLOCK_START + 0)
-			local Value: { Net: string, Event: string, Args: {[number]: any}? } = ReadFUNCTION_DATA_RemoteFunction()
+			local Value: { Net: string, Event: string, Args: buffer? } = ReadFUNCTION_DATA_RemoteFunction()
 			if Events.Reliable[0] ~= nil then
 				task.spawn(Events.Reliable[0], Player, Value, InvocationIdentifier)
 			else
@@ -345,7 +335,7 @@ Reliable.OnServerEvent:Connect(function(Player: Player, Buffer: buffer, Instance
 				table.insert(Queue.Reliable[0], {Player, Value, InvocationIdentifier} :: {any})
 			end
 		elseif Index == 1 then
-			local Value: { Net: string, Event: string, Args: {[number]: any}? }? = ReadEVENT_ServerEvent()
+			local Value: { Net: string, Event: string, Args: buffer? }? = ReadEVENT_ServerEvent()
 			if Events.Reliable[1] ~= nil then
 				Events.Reliable[1](Player, Value)
 			else
@@ -364,10 +354,9 @@ Unreliable.OnServerEvent:Connect(function(Player: Player, Buffer: buffer, Instan
 	RecieveInstances = Instances
 	RecieveInstanceCursor = 0
 	local Size = buffer.len(RecieveBuffer)
-
+	
 	if Size > MAX_BUFFER_SIZE then
-		warn("[Cardinal]: Received packet larger than the maximum buffer size, did you forget to set the maximum buffer size?")
-		return
+		return warn("[Blink]: Received buffer exceeded maximum size of 1MB, ignoring packet.")
 	end
 
 	while (RecieveCursor < Size) do
@@ -377,13 +366,14 @@ Unreliable.OnServerEvent:Connect(function(Player: Player, Buffer: buffer, Instan
 	end
 end)
 
+
 local Returns = table.freeze({
 	StepReplication = StepReplication,
 
 	RemoteFunction = {
-		On = function(Listener: (Player, { Net: string, Event: string, Args: {[number]: any}? }) -> (any)): ()
-			Events.Reliable[0] = function(Player: Player, Value: { Net: string, Event: string, Args: {[number]: any}? }, InvocationIdentifier: number): ()
-				local ReturnValue: any;
+		On = function(Listener: (Player, { Net: string, Event: string, Args: buffer? }) -> (buffer?)): ()
+			Events.Reliable[0] = function(Player: Player, Value: { Net: string, Event: string, Args: buffer? }, InvocationIdentifier: number): ()
+				local ReturnValue: buffer?;
 				local Success, Error = pcall(function ()
 					ReturnValue = Listener(Player, Value)
 				end)
@@ -409,7 +399,7 @@ local Returns = table.freeze({
 		end
 	},
 	ServerEvent = {
-		On = function(Listener: (Player: Player, Value: { Net: string, Event: string, Args: {[number]: any}? }?) -> ()): () -> ()
+		On = function(Listener: (Player: Player, Value: { Net: string, Event: string, Args: buffer? }?) -> ()): () -> ()
 			Events.Reliable[1] = Listener
 			for Index, Arguments in Queue.Reliable[1] do
 				Listener(table.unpack(Arguments))
@@ -423,12 +413,12 @@ local Returns = table.freeze({
 		end
 	},
 	ClientEvent = {
-		Fire = function(Player: Player, Value: { Net: string, Event: string, Args: {[number]: any}? }?): ()
+		Fire = function(Player: Player, Value: { Net: string, Event: string, Args: buffer? }?): ()
 			Load(PlayersMap[Player])
 			WriteEVENT_ClientEvent(Value)
 			PlayersMap[Player] = Save()
 		end,
-		FireAll = function(Value: { Net: string, Event: string, Args: {[number]: any}? }?): ()
+		FireAll = function(Value: { Net: string, Event: string, Args: buffer? }?): ()
 			Load()
 			WriteEVENT_ClientEvent(Value)
 			local Buffer, Size, Instances = SendBuffer, SendCursor, SendInstances
@@ -440,7 +430,7 @@ local Returns = table.freeze({
 				PlayersMap[Player] = Save()
 			end
 		end,
-		FireList = function(List: {Player}, Value: { Net: string, Event: string, Args: {[number]: any}? }?): ()
+		FireList = function(List: {Player}, Value: { Net: string, Event: string, Args: buffer? }?): ()
 			Load()
 			WriteEVENT_ClientEvent(Value)
 			local Buffer, Size, Instances = SendBuffer, SendCursor, SendInstances
@@ -452,7 +442,7 @@ local Returns = table.freeze({
 				PlayersMap[Player] = Save()
 			end
 		end,
-		FireExcept = function(Except: Player, Value: { Net: string, Event: string, Args: {[number]: any}? }?): ()
+		FireExcept = function(Except: Player, Value: { Net: string, Event: string, Args: buffer? }?): ()
 			Load()
 			WriteEVENT_ClientEvent(Value)
 			local Buffer, Size, Instances = SendBuffer, SendCursor, SendInstances

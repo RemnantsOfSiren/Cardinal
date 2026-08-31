@@ -2,18 +2,16 @@ option RemoteScope = "Cardinal"
 option ServerOutput = "src/Net/Server.luau"
 option ClientOutput = "src/Net/Client.luau"
 
-map optionalUnknownArray = { [u16]: unknown }?
-
 struct packet {
     Net: string,
     Event: string,
-    Args: optionalUnknownArray
+    Args: buffer?,
 }
 
 function RemoteFunction {
     Yield: Coroutine,
     Data: packet,
-    Return: unknown,
+    Return: buffer?,
 }
 
 event ServerEvent {

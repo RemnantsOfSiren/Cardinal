@@ -152,9 +152,8 @@ local Queue: any = {
 
 Queue.Reliable[0] = table.create(256)
 Queue.Reliable[2] = table.create(256)
-export type optionalUnknownArray = {[number]: any}?
-export type packet = { Net: string, Event: string, Args: {[number]: any}? }
-local function WriteFUNCTION_DATA_RemoteFunction(Value: { Net: string, Event: string, Args: {[number]: any}? }, InvocationIdentifier: number): ()
+export type packet = { Net: string, Event: string, Args: buffer? }
+local function WriteFUNCTION_DATA_RemoteFunction(Value: { Net: string, Event: string, Args: buffer? }, InvocationIdentifier: number): ()
 	-- Allocate BLOCK: 7 bytes
 	local BLOCK_START = Allocate(7)
 	buffer.writeu8(SendBuffer, BLOCK_START + 0, 0)
@@ -171,30 +170,32 @@ local function WriteFUNCTION_DATA_RemoteFunction(Value: { Net: string, Event: st
 	if Value.Args ~= nil then
 		-- Allocate BLOCK: 2 bytes
 		local BLOCK_START = Allocate(2)
-		local Elements_2 = 0
-		for Key_2, Element_2 in Value.Args do
-			Elements_2 += 1
-			local OFFSET_0 = Allocate(2)
-			buffer.writeu16(SendBuffer, OFFSET_0, Key_2)
-			table.insert(SendInstances, if Element_2 == nil then Null else Element_2)
-		end
-		buffer.writeu16(SendBuffer, BLOCK_START + 0, Elements_2)
+		local Length = buffer.len(Value.Args)
+		buffer.writeu16(SendBuffer, BLOCK_START + 0, Length)
+		Allocate(Length)
+		buffer.copy(SendBuffer, SendOffset, Value.Args, 0, Length)
 	end
 end
 
-local function ReadFUNCTION_RETURN_RemoteFunction(): (any)
-	-- Read BLOCK: 1 bytes
-	local BLOCK_START = Read(1)
+local function ReadFUNCTION_RETURN_RemoteFunction(): (buffer?)
+	-- Read BLOCK: 2 bytes
+	local BLOCK_START = Read(2)
 	local Success = buffer.readu8(RecieveBuffer, BLOCK_START + 0)
 	if Success ~= 1 then
 		error("Server encountered an error.")
 	end
-	RecieveInstanceCursor += 1
-	local Value = RecieveInstances[RecieveInstanceCursor]
+	local Value
+	if buffer.readu8(RecieveBuffer, BLOCK_START + 1) == 1 then
+		-- Read BLOCK: 2 bytes
+		local BLOCK_START = Read(2)
+		local Length = buffer.readu16(RecieveBuffer, BLOCK_START + 0)
+		Value = buffer.create(Length)
+		buffer.copy(Value, 0, RecieveBuffer, Read(Length), Length)
+	end
 	return Value
 end
 
-local function WriteEVENT_ServerEvent(Value: { Net: string, Event: string, Args: {[number]: any}? }?): ()
+local function WriteEVENT_ServerEvent(Value: { Net: string, Event: string, Args: buffer? }?): ()
 	-- Allocate BLOCK: 2 bytes
 	local BLOCK_START = Allocate(2)
 	buffer.writeu8(SendBuffer, BLOCK_START + 0, 1)
@@ -214,19 +215,15 @@ local function WriteEVENT_ServerEvent(Value: { Net: string, Event: string, Args:
 		if Value.Args ~= nil then
 			-- Allocate BLOCK: 2 bytes
 			local BLOCK_START = Allocate(2)
-			local Elements_3 = 0
-			for Key_3, Element_3 in Value.Args do
-				Elements_3 += 1
-				local OFFSET_0 = Allocate(2)
-				buffer.writeu16(SendBuffer, OFFSET_0, Key_3)
-				table.insert(SendInstances, if Element_3 == nil then Null else Element_3)
-			end
-			buffer.writeu16(SendBuffer, BLOCK_START + 0, Elements_3)
+			local Length = buffer.len(Value.Args)
+			buffer.writeu16(SendBuffer, BLOCK_START + 0, Length)
+			Allocate(Length)
+			buffer.copy(SendBuffer, SendOffset, Value.Args, 0, Length)
 		end
 	end
 end
 
-local function ReadEVENT_ClientEvent(): ({ Net: string, Event: string, Args: {[number]: any}? }?)
+local function ReadEVENT_ClientEvent(): ({ Net: string, Event: string, Args: buffer? }?)
 	-- Read BLOCK: 1 bytes
 	local BLOCK_START = Read(1)
 	local Value
@@ -241,15 +238,9 @@ local function ReadEVENT_ClientEvent(): ({ Net: string, Event: string, Args: {[n
 		if buffer.readu8(RecieveBuffer, BLOCK_START + 4) == 1 then
 			-- Read BLOCK: 2 bytes
 			local BLOCK_START = Read(2)
-			Value.Args = {}
-			local Elements_3 = buffer.readu16(RecieveBuffer, BLOCK_START + 0)
-			for _ = 1, Elements_3 do
-				local OFFSET_0 = Read(2)
-				local Key_3 = buffer.readu16(RecieveBuffer, OFFSET_0)
-				RecieveInstanceCursor += 1
-				local Element_3 = RecieveInstances[RecieveInstanceCursor]
-				Value.Args[Key_3] = Element_3
-			end
+			Length = buffer.readu16(RecieveBuffer, BLOCK_START + 0)
+			Value.Args = buffer.create(Length)
+			buffer.copy(Value.Args, 0, RecieveBuffer, Read(Length), Length)
 		end
 	end
 	return Value
@@ -316,7 +307,7 @@ Reliable.OnClientEvent:Connect(function(Buffer: buffer, Instances: {Instance})
 				Calls[InvocationIdentifier] = nil
 			end
 		elseif Index == 2 then
-			local Value: { Net: string, Event: string, Args: {[number]: any}? }? = ReadEVENT_ClientEvent()
+			local Value: { Net: string, Event: string, Args: buffer? }? = ReadEVENT_ClientEvent()
 			if Events.Reliable[2] ~= nil then
 				Events.Reliable[2](Value)
 			else
@@ -346,7 +337,7 @@ local Returns = table.freeze({
 	StepReplication = StepReplication,
 
 	RemoteFunction = {
-		Invoke = function(Value: { Net: string, Event: string, Args: {[number]: any}? }): (any)
+		Invoke = function(Value: { Net: string, Event: string, Args: buffer? }): (buffer?)
 			local InvocationIdentifier = Invoke()
 			if Calls[InvocationIdentifier] ~= nil then
 				Invocations -= 1
@@ -354,7 +345,7 @@ local Returns = table.freeze({
 			end
 			WriteFUNCTION_DATA_RemoteFunction(Value, InvocationIdentifier)
 			Calls[InvocationIdentifier] = coroutine.running()
-			local Success, ReturnValue: any = coroutine.yield()
+			local Success, ReturnValue: buffer? = coroutine.yield()
 			if Success ~= true then
 				error("There was an exception while processing \"RemoteFunction\".")
 			end
@@ -362,12 +353,12 @@ local Returns = table.freeze({
 		end
 	},
 	ServerEvent = {
-		Fire = function(Value: { Net: string, Event: string, Args: {[number]: any}? }?): ()
+		Fire = function(Value: { Net: string, Event: string, Args: buffer? }?): ()
 			WriteEVENT_ServerEvent(Value)
 		end
 	},
 	ClientEvent = {
-		On = function(Listener: (Value: { Net: string, Event: string, Args: {[number]: any}? }?) -> ()): () -> ()
+		On = function(Listener: (Value: { Net: string, Event: string, Args: buffer? }?) -> ()): () -> ()
 			Events.Reliable[2] = Listener
 			for Index, Arguments in Queue.Reliable[2] do
 				Listener(table.unpack(Arguments))

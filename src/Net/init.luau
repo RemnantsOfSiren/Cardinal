@@ -5,127 +5,125 @@ local RunService = game:GetService("RunService")
 local IsServer = RunService:IsServer()
 
 local Net = IsServer and require(script.Server) or require(script.Client)
-
+local BlazeSentry = require(script.Parent.Parent.BlazeSentry) :: { [any]: any }
 local RemoteSignal = require(script.RemoteSignal)
 local RemoteProperty = require(script.RemoteProperty)
 
-local BlazeSentry = require(script.Parent.Parent.BlazeSentry) :: { [any]: any }
-
 local Dynamic = BlazeSentry.dynamic
 
-local function MakePacket(Bridge: string, Name: string, Args: { any })
-    return {
-        Net = Bridge,
-        Args = Dynamic.serialize(Args),
-        Event = Name,
-    }
+local function MakePacket(Bridge: string, Name: string, Args: { any }?)
+	return {
+		Net = Bridge,
+		Args = if Args then Dynamic.serialize(nil, nil, Args) else nil,
+		Event = Name,
+	}
 end
 
 local Event = {}
 Event.__index = Event
 
 function Event.new(Bridge: string, Name: string)
-    return setmetatable({
-        Name = Name,
-        Bridge = Bridge,
-        _Invoke = nil,
-        _Connections = {},
-    }, Event)
+	return setmetatable({
+		Name = Name,
+		Bridge = Bridge,
+		_Invoke = nil,
+		_Connections = {},
+	}, Event)
 end
 
 function Event:Fire(...)
-    local Args = { ... }
+	local Args = { ... }
 
-    local Player
+	local Player
 
-    if IsServer then
-        Player = table.remove(Args, 1)
-    end
+	if IsServer then
+		Player = table.remove(Args, 1)
+	end
 
-    local Packet = MakePacket(self.Bridge, self.Name, Args)
+	local Packet = MakePacket(self.Bridge, self.Name, Args)
 
-    if IsServer then
-        Net.ClientEvent.Fire(Player, Packet)
-    else
-        Net.ServerEvent.Fire(Packet)
-    end
+	if IsServer then
+		Net.ClientEvent.Fire(Player, Packet)
+	else
+		Net.ServerEvent.Fire(Packet)
+	end
 end
 
 function Event:FireAll(...)
-    if IsServer then
-        Net.ClientEvent.FireAll(MakePacket(self.Bridge, self.Name, { ... }))
-    end
+	if IsServer then
+		Net.ClientEvent.FireAll(MakePacket(self.Bridge, self.Name, { ... }))
+	end
 end
 
 function Event:FireAllExcept(List: { Player } | Player, ...)
-    if IsServer then
-        if typeof(List) ~= "table" then
-            List = { List }
-        end
-        local PlayersInGame = Players:GetPlayers()
-        for I = #PlayersInGame, 1, -1 do
-            local Player = PlayersInGame[I]
-            if table.find(List :: { Player }, Player) then
-                table.remove(PlayersInGame, I)
-            end
-        end
-        self:FireList(PlayersInGame,  ...)
-    end
+	if IsServer then
+		if typeof(List) ~= "table" then
+			List = { List }
+		end
+		local PlayersInGame = Players:GetPlayers()
+		for I = #PlayersInGame, 1, -1 do
+			local Player = PlayersInGame[I]
+			if table.find(List :: { Player }, Player) then
+				table.remove(PlayersInGame, I)
+			end
+		end
+		self:FireList(PlayersInGame, ...)
+	end
 end
 
 function Event:FireList(List: { Player }, ...)
-    if IsServer then
-        Net.ClientEvent.FireList(List, MakePacket(self.Bridge, self.Name, { ... }))
-    end
+	if IsServer then
+		Net.ClientEvent.FireList(List, MakePacket(self.Bridge, self.Name, { ... }))
+	end
 end
 
 function Event:SetCallback(Callback: (...any) -> nil)
-    if not IsServer then
-        error("SetCallback can only be called on the server.")
-    end
+	if not IsServer then
+		error("SetCallback can only be called on the server.")
+	end
 
-    if self._Invoke then
-        error(`Event {self.Name} already has a callback set. Only one callback can be set.`)
-    end
-    
-    self._Invoke = Callback
+	if self._Invoke then
+		error(`Event {self.Name} already has a callback set. Only one callback can be set.`)
+	end
+
+	self._Invoke = Callback
 end
 
 function Event:Invoke(...)
-    if not IsServer then
-        return Net.RemoteFunction.Invoke(MakePacket(self.Bridge, self.Name, { ... }))
-    end
+	if not IsServer then
+		return Dynamic.deserialize(nil, nil, Net.RemoteFunction.Invoke(MakePacket(self.Bridge, self.Name, { ... })))
+	end
 
-    return nil
+	return nil
 end
 
 function Event:Connect(Callback: (...any) -> nil)
-    table.insert(self._Connections, Callback)
+	table.insert(self._Connections, Callback)
 
-    return {
-        Disconnect = function()
-            for I = #self._Connections, 1, -1 do
-                if self._Connections[I] == Callback then
-                    table.remove(self._Connections, I)
-                    break
-                end
-            end
-        end,
-    }
+	return {
+		Disconnect = function()
+			for I = #self._Connections, 1, -1 do
+				if self._Connections[I] == Callback then
+					table.remove(self._Connections, I)
+					break
+				end
+			end
+		end,
+	}
 end
 
 function Event:Once(Callback: (...any) -> nil)
-    local Connection
+	local Connection
 
-    Connection = self:Connect(function(...)
-        if Connection then
-            Connection:Disconnect()
-        end
+	Connection = self:Connect(function(...)
+		if Connection then
+			Connection:Disconnect()
+		end
 
-        task.spawn(Callback, ...)
-    end)
+		task.spawn(Callback, ...)
+	end)
 
-    return Connection
+	return Connection
 end
 
 local Bridges = {}
@@ -134,95 +132,95 @@ local Bridge = {}
 Bridge.__index = Bridge
 
 function Bridge.new(Name: string)
-    if Bridges[Name] then
-        return Bridges[Name]
-    end
+	if Bridges[Name] then
+		return Bridges[Name]
+	end
 
-    local self = setmetatable({
-        Name = Name,
-        _Events = {},
-    }, Bridge)
+	local self = setmetatable({
+		Name = Name,
+		_Events = {},
+	}, Bridge)
 
-    Bridges[Name] = self
+	Bridges[Name] = self
 
-    return self
+	return self
 end
 
 function Bridge:CreateEvent(Name: string)
-    if self._Events[Name] then
-        return self._Events[Name]
-    end
+	if self._Events[Name] then
+		return self._Events[Name]
+	end
 
-    local _Event = Event.new(self.Name, Name)
-    self._Events[Name] = _Event
-    return _Event
+	local _Event = Event.new(self.Name, Name)
+	self._Events[Name] = _Event
+	return _Event
 end
 
 if IsServer then
-    Net.RemoteFunction.On(function(Player: Player, Packet)
-        local Args = Packet.Args
-        local EventName = Packet.Event
-        local BridgeName = Packet.Net
+	Net.RemoteFunction.On(function(Player: Player, Packet)
+		local Args = Packet.Args
+		local EventName = Packet.Event
+		local BridgeName = Packet.Net
 
-        local _Bridge = Bridges[BridgeName]
+		local _Bridge = Bridges[BridgeName]
 
-        if not _Bridge then
-            return nil
-        end
+		if not _Bridge then
+			return nil
+		end
 
-        local _Event = _Bridge._Events[EventName]
+		local _Event = _Bridge._Events[EventName]
 
-        local _Args = Dynamic.deserialize(Args)
+		local _Args = if Args then Dynamic.deserialize(nil, nil, Args) else nil
 
-        if _Event and _Event._Invoke and _Args then
-            return _Event._Invoke(Player, unpack(_Args))
-        end
+		if _Event and _Event._Invoke and _Args then
+			return Dynamic.serialize(nil, nil, _Event._Invoke(Player, unpack(_Args)))
+		end
 
-        return nil
-    end)
+		return nil
+	end)
 
-    Net.ServerEvent.On(function(Player, Packet)
-        local Args = Packet.Args
-        local EventName = Packet.Event
-        local BridgeName = Packet.Net
+	Net.ServerEvent.On(function(Player, Packet)
+		local Args = Packet.Args
+		local EventName = Packet.Event
+		local BridgeName = Packet.Net
 
-        local _Bridge = Bridges[BridgeName]
+		local _Bridge = Bridges[BridgeName]
 
-        if not _Bridge then
-            return
-        end
+		if not _Bridge then
+			return
+		end
 
-        local _Event = _Bridge._Events[EventName]
+		local _Event = _Bridge._Events[EventName]
 
-        local _Args = Dynamic.deserialize(Args)
+		local _Args = if Args then Dynamic.deserialize(nil, nil, Args) else nil
 
-        if _Event and #_Event._Connections > 0 then
-            for _, Callback in pairs(_Event._Connections) do
-                task.spawn(Callback, Player, unpack(_Args))
-            end
-        end
-    end)
+		if _Event and #_Event._Connections > 0 then
+			for _, Callback in pairs(_Event._Connections) do
+				task.spawn(Callback, Player, unpack(_Args))
+			end
+		end
+	end)
 else
-    Net.ClientEvent.On(function(Packet)
-        local Args = Packet.Args
-        local EventName = Packet.Event
-        local BridgeName = Packet.Net
-        
-        local _Bridge = Bridges[BridgeName]
+	Net.ClientEvent.On(function(Packet)
+		local Args = Packet.Args
+		local EventName = Packet.Event
+		local BridgeName = Packet.Net
 
-        if not _Bridge then
-            return
-        end
+		local _Bridge = Bridges[BridgeName]
 
-        local _Event = _Bridge._Events[EventName]
-        local _Args = Dynamic.deserialize(Args)
+		if not _Bridge then
+			return
+		end
 
-        if _Event and #_Event._Connections > 0 then
-            for _, Callback in pairs(_Event._Connections) do
-                task.spawn(Callback, unpack(_Args))
-            end
-        end
-    end)
+		local _Event = _Bridge._Events[EventName]
+		local _Args = if Args then Dynamic.deserialize(nil, nil, Args) else nil
+
+		if _Event and #_Event._Connections > 0 then
+			for _, Callback in pairs(_Event._Connections) do
+				task.spawn(Callback, unpack(_Args))
+			end
+		end
+	end)
 end
 
 export type ServerSignal = RemoteSignal.ServerRemoteSignal
@@ -232,11 +230,15 @@ export type ServerProperty<T> = RemoteProperty.ServerRemoteProperty<T>
 export type ClientProperty<T> = RemoteProperty.ClientRemoteProperty<T>
 
 return table.freeze({
-    new = Bridge.new,
+	new = Bridge.new,
 	CreateSignal = (RunService:IsServer() and RemoteSignal.Server or RemoteSignal.Client) :: (
-		(Net: any, Name: string) -> ServerSignal | ClientSignal
-	),
-	CreateProperty = (RunService:IsServer() and RemoteProperty.Server or RemoteProperty.Client) :: (
-		<T>(Net: any, Name: string, InitialValue: T, ServicePromise: boolean?) -> ServerProperty<T> | ClientProperty<T>
-	),
+			Net: any,
+			Name: string
+		) -> ServerSignal | ClientSignal,
+	CreateProperty = (RunService:IsServer() and RemoteProperty.Server or RemoteProperty.Client) :: <T>(
+		Net: any,
+		Name: string,
+		InitialValue: T,
+		ServicePromise: boolean?
+	) -> ServerProperty<T> | ClientProperty<T>,
 })
