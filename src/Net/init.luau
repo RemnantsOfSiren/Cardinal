@@ -5,16 +5,14 @@ local RunService = game:GetService("RunService")
 local IsServer = RunService:IsServer()
 
 local Net = IsServer and require(script.Server) or require(script.Client)
-local BlazeSentry = require(script.Parent.Parent.BlazeSentry) :: { [any]: any }
+local Dynamo = require(script.Parent.Parent.Dynamo) :: { [any]: any }
 local RemoteSignal = require(script.RemoteSignal)
 local RemoteProperty = require(script.RemoteProperty)
-
-local Dynamic = BlazeSentry.dynamic
 
 local function MakePacket(Bridge: string, Name: string, Args: { any }?)
 	return {
 		Net = Bridge,
-		Args = if Args then Dynamic.serialize(nil, nil, Args) else nil,
+		Args = if Args then Dynamo.Serialize1(Args) else nil,
 		Event = Name,
 	}
 end
@@ -91,7 +89,14 @@ end
 
 function Event:Invoke(...)
 	if not IsServer then
-		return Dynamic.deserialize(nil, nil, Net.RemoteFunction.Invoke(MakePacket(self.Bridge, self.Name, { ... })))
+		local Buf = Net.RemoteFunction.Invoke(MakePacket(self.Bridge, self.Name, { ... }))
+
+		if not Buf or buffer.len(Buf) == 0 then
+			return nil
+		end
+
+		local Result = Dynamo.Deserialize1(Buf)
+		return Result
 	end
 
 	return nil
@@ -170,10 +175,10 @@ if IsServer then
 
 		local _Event = _Bridge._Events[EventName]
 
-		local _Args = if Args then Dynamic.deserialize(nil, nil, Args) else nil
+		local _Args = if Args then Dynamo.Deserialize1(Args) else nil
 
 		if _Event and _Event._Invoke and _Args then
-			return Dynamic.serialize(nil, nil, _Event._Invoke(Player, unpack(_Args)))
+			return Dynamo.Serialize1(_Event._Invoke(Player, unpack(_Args)))
 		end
 
 		return nil
@@ -192,7 +197,7 @@ if IsServer then
 
 		local _Event = _Bridge._Events[EventName]
 
-		local _Args = if Args then Dynamic.deserialize(nil, nil, Args) else nil
+		local _Args = if Args then Dynamo.Deserialize1(Args) else nil
 
 		if _Event and #_Event._Connections > 0 then
 			for _, Callback in pairs(_Event._Connections) do
@@ -213,7 +218,7 @@ else
 		end
 
 		local _Event = _Bridge._Events[EventName]
-		local _Args = if Args then Dynamic.deserialize(nil, nil, Args) else nil
+		local _Args = if Args then Dynamo.Deserialize1(Args) else nil
 
 		if _Event and #_Event._Connections > 0 then
 			for _, Callback in pairs(_Event._Connections) do
