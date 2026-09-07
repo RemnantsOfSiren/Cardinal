@@ -270,6 +270,7 @@ Dependencies
 ]]
 local Net = require("@self/Net")
 local Trove = require("./Trove") :: { [any]: any }
+local Dynamo = require("./Dynamo") :: { [any]: any }
 local Signal = require("./Signal") :: { [any]: any }
 local Promise = require("./Promise") :: { [any]: any }
 
@@ -504,6 +505,13 @@ end
 ]=]
 
 --[=[
+	@function UpdateConfig
+	@within Cardinal
+	@param Name: string
+	@param Value: any
+]=]
+
+--[=[
 	@function GetService
 	@within Cardinal
 	@param Name: string
@@ -554,6 +562,12 @@ Return
 ]]
 return {
 	Player = if not IsServer then PlayerService.LocalPlayer else nil,
+
+	UpdateConfig = function(Name: string, Value: any)
+		if table.find({"SerInstanceSerialization", "DoMapCompute", "InstanceRefMode", "UseQuaternion", "QuantizedScaleMin", "QuantizedScaleMax"}, Name) then
+			Dynamo.SetConstant(Name, Value)
+		end
+	end,
 
 	AddCustomLifecycle = function(Name: string, _Signal: any)
 		if CustomEvents[Name] then
@@ -1117,6 +1131,7 @@ return {
 	Start: (Options: { ServicePromise: boolean?, Timeout: number? }?) -> Promise<string>,
 	OnStart: () -> Promise<nil>,
 	GetService: (Name: string) -> { [string]: any }?,
+	UpdateConfig: (Name: string, Value: any) -> nil,
 	CreateSignal: () -> Net.ServerSignal?,
 	CreateProperty: (InitialValue: any) -> Net.ServerProperty<any>?,
 	AddCustomLifecycle: (Name: string, Signal: any) -> nil,
