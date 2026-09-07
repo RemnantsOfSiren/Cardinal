@@ -507,7 +507,7 @@ end
 --[=[
 	@function UpdateConfig
 	@within Cardinal
-	@param Name: string
+	@param Name: "SerInstanceSerialization" | "DoMapCompute" | "InstanceRefMode" | "UseQuaternion" | "QuantizedScaleMin" | "QuantizedScaleMax"
 	@param Value: any
 ]=]
 
@@ -560,12 +560,16 @@ end
 Return
 ================================================================================
 ]]
+const ValidConfigNames = {"SerInstanceSerialization", "DoMapCompute", "InstanceRefMode", "UseQuaternion", "QuantizedScaleMin", "QuantizedScaleMax"}
+
 return {
 	Player = if not IsServer then PlayerService.LocalPlayer else nil,
 
-	UpdateConfig = function(Name: string, Value: any)
-		if table.find({"SerInstanceSerialization", "DoMapCompute", "InstanceRefMode", "UseQuaternion", "QuantizedScaleMin", "QuantizedScaleMax"}, Name) then
+	UpdateConfig = function(Name: "SerInstanceSerialization" | "DoMapCompute" | "InstanceRefMode" | "UseQuaternion" | "QuantizedScaleMin" | "QuantizedScaleMax", Value: any)
+		if table.find(ValidConfigNames, Name) then
 			Dynamo.SetConstant(Name, Value)
+		else
+			warn("@Cardinal - UpdateConfig called with invalid Name, please check for typo expected: " .. table.concat(ValidConfigNames, ","))
 		end
 	end,
 
